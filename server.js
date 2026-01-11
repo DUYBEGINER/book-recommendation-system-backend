@@ -1,10 +1,16 @@
+//URL: http://localhost:3000
 const express = require('express');
 const app = express();
 const port = 3000;
 
 // Định nghĩa một tuyến đường (route) cơ bản
 app.get('/', (req, res) => {
-  res.send('Chào mừng bạn đến với dự án Express đầu tiên!');
+  // res.send('<h3>Chào mừng đến với Ứng dụng Express!</h3>');
+  res.sendStatus(200);
+});
+
+app.get('/user/:id/name/:name', (req, res) => {
+  res.send({ status: 'OK', timestamp: new Date() });
 });
 
 // Lắng nghe các yêu cầu tại cổng 3000
