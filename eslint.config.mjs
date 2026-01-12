@@ -9,7 +9,7 @@ export default defineConfig([
       "no-constant-binary-expression": "error",
     },
   },
-  { files: ["**/*.js"], languageOptions: { sourceType: "commonjs" } },
+  { files: ["**/*.js"], languageOptions: { sourceType: "module" } },
   {
     // Thêm dòng này để bỏ qua các thư mục không muốn quét
     ignores: ["node_modules/", "dist/", "public/"]

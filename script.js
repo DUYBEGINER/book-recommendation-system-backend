@@ -1,4 +1,5 @@
-const prisma = require('./lib/prisma').prisma
+import { prisma } from './app/lib/prisma.js';
+
 
 async function main() {
 
