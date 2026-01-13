@@ -14,6 +14,32 @@ const adapter = new PrismaPg({
     }
 );
 
-const prisma = new PrismaClient({ adapter })
+const prisma = new PrismaClient({ 
+    adapter,
+    log: [
+    {
+      emit: 'event',
+      level: 'query',
+    },
+    {
+      emit: 'stdout',
+      level: 'error',
+    },
+    {
+      emit: 'stdout',
+      level: 'info',
+    },
+    {
+      emit: 'stdout',
+      level: 'warn',
+    },
+  ],
+ })
+
+ prisma.$on('query', (e) => {
+  console.log('Query: ' + e.query)
+  console.log('Params: ' + e.params)
+  console.log('Duration: ' + e.duration + 'ms')
+})
 
 export { prisma, PrismaClient };

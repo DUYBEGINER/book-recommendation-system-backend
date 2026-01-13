@@ -1,5 +1,7 @@
 import app from './app/index.js';
-const port = process.env.PORT || 3000;
+
+const port = process.env.PORT || 8080;
+
 
 // Define a simple route to test the server
 app.get('/', (req, res) => {
