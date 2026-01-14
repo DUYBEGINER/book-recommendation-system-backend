@@ -3,11 +3,7 @@ const router = express.Router();
 
 // Health check endpoint
 router.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'API is healthy',
-    timestamp: new Date().toISOString(),
-  });
+  res.status(200).send({ status: 'OK' });
 });
 
 router.get('/books/genre/:genreId', async (req, res) => {
