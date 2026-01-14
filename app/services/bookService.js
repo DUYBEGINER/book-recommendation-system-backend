@@ -1,11 +1,12 @@
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '#lib/prisma.js';
+
 
 const getBooksByGenre = async (genreId, offset = 0, limit = 10) => {
-    return prisma.books.findMany({
+  return prisma.books.findMany({
     where: {
       book_genres: {
         some: {
-          genre_id: genreId,
+          genre_id: BigInt(genreId),
         },
       },
     },
@@ -13,11 +14,10 @@ const getBooksByGenre = async (genreId, offset = 0, limit = 10) => {
     skip: offset,
     take: limit,
     include: {
-      book_genres: true, // để thấy các record nối
+      book_genres: true, // Include genres
     },
   });
 }
 
 export { getBooksByGenre };
 
-    

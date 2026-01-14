@@ -3,6 +3,13 @@
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
+  "imports": {
+    "#controllers/*": "./app/controllers/*",
+    "#services/*": "./app/services/*",
+    "#utils/*": "./app/utils/*",
+    "#lib/*": "./app/lib/*",
+    "#routes/*": "./app/routes/*"
+  },
   "scripts": {
     "dev": "nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
