@@ -1,8 +1,10 @@
 import { prisma } from '#lib/prisma.js';
+import { transformBooks, transformBook, transformPaginatedBooks } from '#utils/bookTransformer.js';
 
 
+// Function to get books by genre
 const getBooksByGenre = async (genreId, offset = 0, limit = 10) => {
-  return prisma.books.findMany({
+  const books = await prisma.books.findMany({
     where: {
       book_genres: {
         some: {
@@ -14,11 +16,48 @@ const getBooksByGenre = async (genreId, offset = 0, limit = 10) => {
     skip: offset,
     take: limit,
     include: {
-      book_genres: true, // Include genres
+      book_genres: {
+        include: {
+          genres: true,
+        },
+      },
+      book_authors: {
+        include: {
+          authors: true,
+        },
+      },
+      book_formats: true,
     },
   });
+  
+  return transformBooks(books);
 }
 
+//Function to get books by book_id
+const getBookById = async (bookId) => {
+  const book = await prisma.books.findUnique({
+    where: {
+      book_id: BigInt(bookId),
+    },
+    include: {
+      book_authors: {
+        include: {
+          authors: true,
+        },
+      },
+      book_genres: {
+        include: {
+          genres: true,
+        },
+      },
+      book_formats: true,
+    },
+  });
+  
+  return transformBook(book);
+}
+
+// Function to get most read books
 const getMostReadBooks = async (offset = 0, limit = 10) => {
   // Query to get books with most reading history count
   const mostReadBooks = await prisma.reading_history.groupBy({
@@ -37,7 +76,7 @@ const getMostReadBooks = async (offset = 0, limit = 10) => {
 
   // Get full book details for the most read books
   const bookIds = mostReadBooks.map(item => item.book_id);
-  
+
   const books = await prisma.books.findMany({
     where: {
       book_id: {
@@ -63,12 +102,13 @@ const getMostReadBooks = async (offset = 0, limit = 10) => {
     };
   }).sort((a, b) => b.read_count - a.read_count);
 
-  return booksWithCount;
+  return transformBooks(booksWithCount);
 }
 
+// Function to get all books with pagination
 const getAllBooks = async (page = 0, size = 12) => {
   const skip = page * size;
-  
+
   const [books, total] = await Promise.all([
     prisma.books.findMany({
       where: {
@@ -97,7 +137,7 @@ const getAllBooks = async (page = 0, size = 12) => {
     }),
   ]);
 
-  return {
+  return transformPaginatedBooks({
     data: books,
     pagination: {
       page: page,
@@ -105,12 +145,12 @@ const getAllBooks = async (page = 0, size = 12) => {
       total: total,
       totalPages: Math.ceil(total / size),
     },
-  };
+  });
 }
 
 const getAllGenres = async (page = 0, size = 10) => {
   const skip = page * size;
-  
+
   const [genres, total] = await Promise.all([
     prisma.genres.findMany({
       orderBy: { genre_id: 'asc' },
@@ -136,5 +176,13 @@ const getAllGenres = async (page = 0, size = 10) => {
   };
 }
 
-export { getBooksByGenre, getMostReadBooks, getAllBooks, getAllGenres };
+const createBook = async (bookData) => {
+  return prisma.books.create({
+    data: bookData,
+  });
+}
+
+
+
+export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks, getAllGenres };
 

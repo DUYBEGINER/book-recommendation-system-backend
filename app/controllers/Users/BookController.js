@@ -3,26 +3,19 @@ import {
     getBooksByGenre as getBooksByGenreService,
     getMostReadBooks as getMostReadBooksService,
     getAllBooks as getAllBooksService,
-    getAllGenres as getAllGenresService
+    getAllGenres as getAllGenresService,
+    getBookById as getBookByIdService
 } from "#services/bookService.js";
 
 
 const getBooksByGenre = async (req, res) => {
     const { genreId } = req.params;
+
     // Validate genreId
-    if (!genreId) {
-        return ApiResponse.error(res, 'Genre ID is required', 400);
-    }
+    if (!genreId) { return ApiResponse.error(res, 'Genre ID is required', 400); }
 
     try {
         const books = await getBooksByGenreService(genreId);
-
-        // Log if no books found, for monitoring purposes
-        if(books.length === 0) {
-            logger.info(`No books found for genre ID: ${genreId}`);
-        }else{
-            logger.info(`Fetched ${books.length} books for genre ID: ${genreId}`);
-        }
 
         return ApiResponse.success(res, books, 'Books fetched successfully');
     } catch (err) {
@@ -31,7 +24,33 @@ const getBooksByGenre = async (req, res) => {
     }
 }
 
+
+const getBookById = async (req, res) => {
+
+    // Extract bookId from request parameters
+    const { bookId } = req.params;
+
+    // Validate bookId
+    if (!bookId) { return ApiResponse.error(res, 'Book ID is required', 400); }
+
+    try {
+        const book = await getBookByIdService(bookId);
+        
+        if (!book) {
+            logger.info(`Book not found for book ID ${bookId}`);
+            return ApiResponse.error(res, 'Book not found', 404);
+        }
+
+        return ApiResponse.success(res, book, 'Book fetched successfully');
+    } catch (err) {
+        logger.error(`Error fetching book for book ID ${bookId}: ${err.message}`);
+        return ApiResponse.error(res, 'Failed to fetch book', 500);
+    }
+}
+
+
 const getMostReadBooks = async (req, res) => {
+    // Extract pagination parameters
     const { limit = 10, offset = 0 } = req.query;
 
     try {
@@ -51,6 +70,7 @@ const getMostReadBooks = async (req, res) => {
 }
 
 const getAllBooks = async (req, res) => {
+    // Extract pagination parameters
     const { page = 0, size = 12 } = req.query;
 
     try {
@@ -66,6 +86,7 @@ const getAllBooks = async (req, res) => {
 }
 
 const getAllGenres = async (req, res) => {
+    // Extract pagination parameters
     const { page = 0, size = 10 } = req.query;
 
     try {
@@ -81,4 +102,4 @@ const getAllGenres = async (req, res) => {
 }
 
 
-export { getBooksByGenre, getMostReadBooks, getAllBooks, getAllGenres };
+export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks, getAllGenres };
