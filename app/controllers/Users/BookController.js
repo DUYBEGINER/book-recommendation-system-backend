@@ -4,7 +4,6 @@ import {
     getBooksByGenre as getBooksByGenreService,
     getMostReadBooks as getMostReadBooksService,
     getAllBooks as getAllBooksService,
-    getAllGenres as getAllGenresService,
     getBookById as getBookByIdService
 } from "#services/bookService.js";
 
@@ -86,22 +85,7 @@ const getAllBooks = async (req, res) => {
     }
 }
 
-const getAllGenres = async (req, res) => {
-    // Extract pagination parameters
-    const { page = 0, size = 10 } = req.query;
-
-    try {
-        const genres = await getAllGenresService(parseInt(page), parseInt(size));
-
-        logger.info(`Fetched ${genres.data.length} genres (page ${page}, size ${size})`);
-
-        // const genresResponse = transformKeys(genres);
-        return ApiResponse.success(res, genres.data, 'Genres fetched successfully');
-    } catch (err) {
-        logger.error(`Error fetching genres: ${err.message}`);
-        return ApiResponse.error(res, 'Failed to fetch genres', 500);
-    }
-}
 
 
-export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks, getAllGenres };
+
+export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks };

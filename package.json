@@ -9,7 +9,8 @@
     "#utils/*": "./app/utils/*",
     "#lib/*": "./app/lib/*",
     "#routes/*": "./app/routes/*",
-    "#config/*": "./app/config/*"
+    "#config/*": "./app/config/*",
+    "#mappers/*": "./app/mappers/*"
   },
   "scripts": {
     "dev": "nodemon server.js",

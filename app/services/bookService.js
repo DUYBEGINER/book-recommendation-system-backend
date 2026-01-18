@@ -149,33 +149,7 @@ const getAllBooks = async (page = 0, size = 12) => {
   };
 }
 
-const getAllGenres = async (page = 0, size = 10) => {
-  const skip = page * size;
 
-  const [genres, total] = await Promise.all([
-    prisma.genres.findMany({
-      orderBy: { genre_id: 'asc' },
-      skip: skip,
-      take: size,
-      include: {
-        _count: {
-          select: { book_genres: true },
-        },
-      },
-    }),
-    prisma.genres.count(),
-  ]);
-
-  return {
-    data: genres,
-    pagination: {
-      page: page,
-      size: size,
-      total: total,
-      totalPages: Math.ceil(total / size),
-    },
-  };
-}
 
 // const createBook = async (bookData) => {
 //   const book = await prisma.books.create({
@@ -188,5 +162,5 @@ const getAllGenres = async (page = 0, size = 10) => {
 
 
 
-export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks, getAllGenres };
+export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks };
 
