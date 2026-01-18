@@ -1,36 +1,37 @@
 import { prisma } from '#lib/prisma.js';
-import { transformBooks, transformBook, transformPaginatedBooks } from '#utils/bookTransformer.js';
-
 
 // Function to get books by genre
 const getBooksByGenre = async (genreId, offset = 0, limit = 10) => {
   const books = await prisma.books.findMany({
     where: {
+      is_deleted: false,
       book_genres: {
         some: {
           genre_id: BigInt(genreId),
         },
       },
+
     },
     orderBy: { book_id: "asc" },
     skip: offset,
     take: limit,
-    include: {
-      book_genres: {
-        include: {
-          genres: true,
-        },
-      },
+    select: {
+      book_id: true,
+      title: true,
+      cover_image_url: true,
       book_authors: {
-        include: {
-          authors: true,
+        select: {
+          authors: {
+            select: {
+              author_id: true,
+              author_name: true,
+            },
+          },
         },
       },
-      book_formats: true,
     },
-  });
-  
-  return transformBooks(books);
+  });  
+  return books;
 }
 
 //Function to get books by book_id
@@ -54,7 +55,7 @@ const getBookById = async (bookId) => {
     },
   });
   
-  return transformBook(book);
+  return book;
 }
 
 // Function to get most read books
@@ -102,7 +103,7 @@ const getMostReadBooks = async (offset = 0, limit = 10) => {
     };
   }).sort((a, b) => b.read_count - a.read_count);
 
-  return transformBooks(booksWithCount);
+  return booksWithCount;
 }
 
 // Function to get all books with pagination
@@ -137,15 +138,15 @@ const getAllBooks = async (page = 0, size = 12) => {
     }),
   ]);
 
-  return transformPaginatedBooks({
+  return {
     data: books,
     pagination: {
       page: page,
       size: size,
       total: total,
       totalPages: Math.ceil(total / size),
-    },
-  });
+    }
+  };
 }
 
 const getAllGenres = async (page = 0, size = 10) => {
@@ -176,11 +177,14 @@ const getAllGenres = async (page = 0, size = 10) => {
   };
 }
 
-const createBook = async (bookData) => {
-  return prisma.books.create({
-    data: bookData,
-  });
-}
+// const createBook = async (bookData) => {
+//   const book = await prisma.books.create({
+//     data: bookData,
+//   });
+//   return book;
+// }
+
+
 
 
 

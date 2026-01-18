@@ -1,4 +1,5 @@
 import { ApiResponse, logger } from "#utils/index.js";
+import { toBookListResponse, toBookDetailResponse } from "../../mappers/book.mapper.js";
 import { 
     getBooksByGenre as getBooksByGenreService,
     getMostReadBooks as getMostReadBooksService,
@@ -6,7 +7,6 @@ import {
     getAllGenres as getAllGenresService,
     getBookById as getBookByIdService
 } from "#services/bookService.js";
-
 
 const getBooksByGenre = async (req, res) => {
     const { genreId } = req.params;
@@ -16,14 +16,13 @@ const getBooksByGenre = async (req, res) => {
 
     try {
         const books = await getBooksByGenreService(genreId);
-
-        return ApiResponse.success(res, books, 'Books fetched successfully');
+        const bookResponse = toBookListResponse(books);
+        return ApiResponse.success(res, bookResponse, 'Books fetched successfully');
     } catch (err) {
         logger.error(`Error fetching books for genre ID ${genreId}: ${err.message}`);
         return ApiResponse.error(res, 'Failed to fetch books', 500);
     }
 }
-
 
 const getBookById = async (req, res) => {
 
@@ -37,11 +36,11 @@ const getBookById = async (req, res) => {
         const book = await getBookByIdService(bookId);
         
         if (!book) {
-            logger.info(`Book not found for book ID ${bookId}`);
             return ApiResponse.error(res, 'Book not found', 404);
         }
 
-        return ApiResponse.success(res, book, 'Book fetched successfully');
+        const bookResponse = toBookDetailResponse(book);
+        return ApiResponse.success(res, bookResponse, 'Book fetched successfully');
     } catch (err) {
         logger.error(`Error fetching book for book ID ${bookId}: ${err.message}`);
         return ApiResponse.error(res, 'Failed to fetch book', 500);
@@ -62,7 +61,8 @@ const getMostReadBooks = async (req, res) => {
             logger.info(`Fetched ${books.length} most read books`);
         }
 
-        return ApiResponse.success(res, books, 'Most read books fetched successfully');
+        const booksResponse = toBookListResponse(books);
+        return ApiResponse.success(res, booksResponse, 'Most read books fetched successfully');
     } catch (err) {
         logger.error(`Error fetching most read books: ${err.message}`);
         return ApiResponse.error(res, 'Failed to fetch most read books', 500);
@@ -74,11 +74,12 @@ const getAllBooks = async (req, res) => {
     const { page = 0, size = 12 } = req.query;
 
     try {
-        const result = await getAllBooksService(parseInt(page), parseInt(size));
+        const books = await getAllBooksService(parseInt(page), parseInt(size));
 
-        logger.info(`Fetched ${result.data.length} books (page ${page}, size ${size})`);
+        logger.info(`Fetched ${books.data.length} books (page ${page}, size ${size})`);
 
-        return ApiResponse.success(res, result, 'Books fetched successfully');
+        const booksResponse = toBookListResponse(books.data);
+        return ApiResponse.success(res, booksResponse, 'Books fetched successfully');
     } catch (err) {
         logger.error(`Error fetching books: ${err.message}`);
         return ApiResponse.error(res, 'Failed to fetch books', 500);
@@ -90,11 +91,12 @@ const getAllGenres = async (req, res) => {
     const { page = 0, size = 10 } = req.query;
 
     try {
-        const result = await getAllGenresService(parseInt(page), parseInt(size));
+        const genres = await getAllGenresService(parseInt(page), parseInt(size));
 
-        logger.info(`Fetched ${result.data.length} genres (page ${page}, size ${size})`);
+        logger.info(`Fetched ${genres.data.length} genres (page ${page}, size ${size})`);
 
-        return ApiResponse.success(res, result, 'Genres fetched successfully');
+        // const genresResponse = transformKeys(genres);
+        return ApiResponse.success(res, genres.data, 'Genres fetched successfully');
     } catch (err) {
         logger.error(`Error fetching genres: ${err.message}`);
         return ApiResponse.error(res, 'Failed to fetch genres', 500);

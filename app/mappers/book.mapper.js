@@ -1,0 +1,69 @@
+
+
+/**
+ * Extract and map authors from book_authors relation
+ */
+const mapAuthors = (bookAuthors) => {
+  if (!Array.isArray(bookAuthors)) return [];
+  
+  return bookAuthors
+    .filter(ba => ba?.authors?.author_id && ba?.authors?.author_name)
+    .map(ba => ({
+      authorId: ba.authors.author_id,
+      authorName: ba.authors.author_name,
+    }));
+};
+
+/**
+ * Map base book fields (used by both list and detail)
+ */
+const mapBaseBookFields = (book) => ({
+  bookId: book.book_id,
+  title: book.title,
+  coverImageUrl: book.cover_image_url,
+  description: book.description,
+  publicationYear: book.publication_year,
+  authors: mapAuthors(book.book_authors),
+});
+
+/**
+ * Transform single book to list response format
+ */
+const toBookListItem = (book) => {
+  if (!book) return null;
+  return mapBaseBookFields(book);
+};
+
+/**
+ * Transform single book to detail response format
+ */
+const toBookDetailItem = (book) => {
+  if (!book) return null;
+  
+  return {
+    ...mapBaseBookFields(book),
+    description: book.description,
+    publicationDate: book.publication_date,
+  };
+};
+
+/**
+ * Transform array of books to list response format
+ */
+export const toBookListResponse = (books) => {
+  if (!books) return null;
+  if (!Array.isArray(books)) return toBookListItem(books);
+  
+  return books.map(toBookListItem).filter(Boolean);
+};
+
+/**
+ * Transform array of books to detail response format
+ */
+export const toBookDetailResponse = (books) => {
+  if (!books) return null;
+  if (!Array.isArray(books)) return toBookDetailItem(books);
+
+  return books.map(toBookDetailItem).filter(Boolean);
+};
+
