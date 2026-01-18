@@ -40,21 +40,25 @@ const getBookById = async (bookId) => {
     where: {
       book_id: BigInt(bookId),
     },
-    include: {
+    select: {
+      book_id: true,
+      title: true,
+      cover_image_url: true,
+      publication_year: true,
+      description: true,
+      publisher: true,
       book_authors: {
-        include: {
-          authors: true,
+        select: {
+          authors: true
         },
       },
       book_genres: {
-        include: {
+        select: {
           genres: true,
         },
       },
-      book_formats: true,
     },
   });
-  
   return book;
 }
 

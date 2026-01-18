@@ -14,6 +14,19 @@ const mapAuthors = (bookAuthors) => {
     }));
 };
 
+// /**
+//  * Extract and map genres from book_genres relation
+//  */
+const mapGenres = (bookGenres) => {
+  if (!Array.isArray(bookGenres)) return [];
+    return bookGenres
+    .filter(bg => bg?.genres?.genre_id && bg?.genres?.genre_name)
+    .map(bg => ({
+      genreId: bg.genres.genre_id,
+      genreName: bg.genres.genre_name,
+    }));
+};
+
 /**
  * Map base book fields (used by both list and detail)
  */
@@ -21,7 +34,6 @@ const mapBaseBookFields = (book) => ({
   bookId: book.book_id,
   title: book.title,
   coverImageUrl: book.cover_image_url,
-  description: book.description,
   publicationYear: book.publication_year,
   authors: mapAuthors(book.book_authors),
 });
@@ -43,7 +55,9 @@ const toBookDetailItem = (book) => {
   return {
     ...mapBaseBookFields(book),
     description: book.description,
-    publicationDate: book.publication_date,
+    publisher: book.publisher,
+    isbn: book.isbn,
+    genres: mapGenres(book.book_genres),
   };
 };
 
