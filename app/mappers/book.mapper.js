@@ -60,6 +60,16 @@ const toBookDetailItem = (book) => {
   };
 };
 
+const toBookSearchItem = (book) => {
+  if (!book) return null;
+  return {
+    bookId: book.book_id,
+    title: book.title,
+    coverImageUrl: book.cover_image_url,
+    authors: mapAuthors(book.book_authors),
+  };
+}
+
 /** Transform single book to preview response format
  */
 const toBookPreviewItem = (book) => {
@@ -104,4 +114,11 @@ export const toBookDetailResponse = (books) => {
 
   return books.map(toBookDetailItem).filter(Boolean);
 };
+
+export const toBookSearchResponse =  (books) => {
+  if (!books) return null;
+  if (!Array.isArray(books)) return toBookDetailItem(books);
+
+  return books.map(toBookDetailItem).filter(Boolean);
+}; 
 

@@ -82,6 +82,7 @@ const getBookById = async (bookId) => {
   const book = await prisma.books.findUnique({
     where: {
       book_id: BigInt(bookId),
+      is_deleted: false,
     },
     select: {
       book_id: true,
@@ -104,7 +105,6 @@ const getBookById = async (bookId) => {
   });
   return book;
 }
-
 
 // Function to get book preview (for hover card)
 const getBookPreview = async (bookId) => {
@@ -185,7 +185,38 @@ const getMostReadBooks = async (offset = 0, limit = 10) => {
   return booksWithCount;
 }
 
-
+const getBookByKeyword = async (keyword, offset = 0, limit = 10) => {
+  const books = await prisma.books.findMany({
+    select: {
+      book_id: true,
+      title: true,
+      cover_image_url: true,
+      book_authors: {
+        select: {
+          authors: {
+            select: {
+              author_id: true,
+              author_name: true,
+            },
+          },
+        },
+      }
+    },
+    where: {
+      is_deleted: false,
+      ...(keyword && {
+      OR: [
+        { title: { contains: keyword, mode: 'insensitive' } },
+        { description: { contains: keyword, mode: 'insensitive' } }
+      ],
+    }),
+    },
+    orderBy: { book_id: 'asc' },
+    skip: offset,
+    take: limit,
+  });
+  return books;
+}
 
 // const createBook = async (bookData) => {
 //   const book = await prisma.books.create({
@@ -194,5 +225,5 @@ const getMostReadBooks = async (offset = 0, limit = 10) => {
 //   return book;
 // }
 
-export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks, getBookPreview };
+export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks, getBookPreview, getBookByKeyword };
 

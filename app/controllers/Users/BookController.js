@@ -1,11 +1,12 @@
 import { ApiResponse, logger } from "#utils/index.js";
-import { toBookListResponse, toBookDetailResponse, toBookPreviewResponse } from "../../mappers/book.mapper.js";
+import { toBookListResponse, toBookDetailResponse, toBookPreviewResponse, toBookSearchResponse } from "../../mappers/book.mapper.js";
 import { 
     getBooksByGenre as getBooksByGenreService,
     getMostReadBooks as getMostReadBooksService,
     getAllBooks as getAllBooksService,
     getBookById as getBookByIdService,
-    getBookPreview as getBookPreviewService
+    getBookPreview as getBookPreviewService,
+    getBookByKeyword as getBookByKeywordService
 } from "#services/bookService.js";
 
 // Controller to get all books with pagination
@@ -111,4 +112,22 @@ const getBookPreview = async (req, res) => {
     }
 }
 
-export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks, getBookPreview };
+const getBookByKeyword = async (req, res) => {
+    const {keyword , page = 0, size = 10} = req.query;
+
+    if (!keyword || Number.isNaN(parseInt(page)) || Number.isNaN(parseInt(size))) {
+        return ApiResponse.error(res, 'query params are invalid', 400);
+    }
+
+    try{
+        const books = await getBookByKeywordService(keyword, parseInt(page), parseInt(size));
+        const booksResponse = toBookSearchResponse(books);
+        return ApiResponse.success(res, booksResponse, 'Books fetched successfully');
+    } catch (err) {
+        logger.error(`Error fetching books for keyword ${keyword}: ${err.message}`);
+        return ApiResponse.error(res, 'Failed to fetch books', 500);
+    }
+
+}
+
+export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks, getBookPreview, getBookByKeyword };
