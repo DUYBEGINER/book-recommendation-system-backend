@@ -56,10 +56,34 @@ const toBookDetailItem = (book) => {
     ...mapBaseBookFields(book),
     description: book.description,
     publisher: book.publisher,
-    isbn: book.isbn,
     genres: mapGenres(book.book_genres),
   };
 };
+
+/** Transform single book to preview response format
+ */
+const toBookPreviewItem = (book) => {
+  if (!book) return null;
+  
+  return {
+    bookId: book.book_id,
+    description: book.description,
+    publicationYear: book.publication_year,
+    coverImageUrl: book.cover_image_url,
+    genres: mapGenres(book.book_genres),
+    authors: mapAuthors(book.book_authors),
+  };
+};
+
+/** Transform array of books to preview response format
+ */
+export const toBookPreviewResponse = (books) => {
+  if (!books) return null;
+  if (!Array.isArray(books)) return toBookPreviewItem(books);
+
+  return books.map(toBookPreviewItem).filter(Boolean);
+};
+
 
 /**
  * Transform array of books to list response format

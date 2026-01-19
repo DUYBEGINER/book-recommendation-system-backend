@@ -1,5 +1,48 @@
 import { prisma } from '#lib/prisma.js';
 
+// Function to get all books with pagination
+const getAllBooks = async (page = 0, size = 12) => {
+  const skip = page * size;
+
+  const [books, total] = await Promise.all([
+    prisma.books.findMany({
+      where: {
+        is_deleted: false,
+      },
+      orderBy: { book_id: 'asc' },
+      skip: skip,
+      take: size,
+      include: {
+        book_genres: {
+          include: {
+            genres: true,
+          },
+        },
+        book_authors: {
+          include: {
+            authors: true,
+          },
+        },
+      },
+    }),
+    prisma.books.count({
+      where: {
+        is_deleted: false,
+      },
+    }),
+  ]);
+
+  return {
+    data: books,
+    pagination: {
+      page: page,
+      size: size,
+      total: total,
+      totalPages: Math.ceil(total / size),
+    }
+  };
+}
+
 // Function to get books by genre
 const getBooksByGenre = async (genreId, offset = 0, limit = 10) => {
   const books = await prisma.books.findMany({
@@ -62,6 +105,38 @@ const getBookById = async (bookId) => {
   return book;
 }
 
+
+// Function to get book preview (for hover card)
+const getBookPreview = async (bookId) => {
+  const book = await prisma.books.findUnique({
+    where: {
+      book_id: BigInt(bookId),
+    },
+    select: {
+      book_id: true,
+      description: true,
+      cover_image_url: true,
+      publication_year: true,
+      book_authors: {
+        select: {
+          authors: true
+        },
+      },
+      book_genres: {
+        select: {
+          genres: {
+            select: {
+              genre_id: true,
+              genre_name: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  return book;
+}
+
 // Function to get most read books
 const getMostReadBooks = async (offset = 0, limit = 10) => {
   // Query to get books with most reading history count
@@ -110,49 +185,6 @@ const getMostReadBooks = async (offset = 0, limit = 10) => {
   return booksWithCount;
 }
 
-// Function to get all books with pagination
-const getAllBooks = async (page = 0, size = 12) => {
-  const skip = page * size;
-
-  const [books, total] = await Promise.all([
-    prisma.books.findMany({
-      where: {
-        is_deleted: false,
-      },
-      orderBy: { book_id: 'asc' },
-      skip: skip,
-      take: size,
-      include: {
-        book_genres: {
-          include: {
-            genres: true,
-          },
-        },
-        book_authors: {
-          include: {
-            authors: true,
-          },
-        },
-      },
-    }),
-    prisma.books.count({
-      where: {
-        is_deleted: false,
-      },
-    }),
-  ]);
-
-  return {
-    data: books,
-    pagination: {
-      page: page,
-      size: size,
-      total: total,
-      totalPages: Math.ceil(total / size),
-    }
-  };
-}
-
 
 
 // const createBook = async (bookData) => {
@@ -162,9 +194,5 @@ const getAllBooks = async (page = 0, size = 12) => {
 //   return book;
 // }
 
-
-
-
-
-export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks };
+export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks, getBookPreview };
 
