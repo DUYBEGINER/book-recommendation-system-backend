@@ -1,8 +1,8 @@
-//URL: http://localhost:3000
 import express from 'express';
 import morgan from 'morgan';
 import cors from "cors";
 import Route from '#routes/index.js';
+import cookieParser from 'cookie-parser';
 import "dotenv/config";
 
 
@@ -12,9 +12,10 @@ const corsOptions = {
   credentials: true 
 };
 
-
 const app = express();
+
 app.use(morgan('common'));
+app.use(cookieParser()); 
 app.use(express.json());
 app.use(cors(corsOptions));
 app.use(express.urlencoded({ extended: false })); // GIS redirect POST form

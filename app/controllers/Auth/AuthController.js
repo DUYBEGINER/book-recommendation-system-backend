@@ -12,33 +12,35 @@ const client = new OAuth2Client({
 
 export const googleLogin = async (req, res) => {
   try {
-    const { credential, g_csrf_token } = req.body;
-
-    console.log("Credential:", credential);
+    const { g_csrf_token } = req.body;
+    const token = req.body?.credential;
+    const csrfCookie = req.cookies?.g_csrf_token;
+    
+    console.log("Token Id:", token);
     console.log("CSRF Token:", g_csrf_token);
-    
-    if (!credential) return res.status(400).send("Missing credential");
-    
-    // const ticket = await client.verifyIdToken({
-    //   idToken: token,
-    //   audience: process.env.GOOGLE_WEB_CLIENT_ID,
-    // });
-    
-    // const payload = ticket.getPayload();
-    // const googleId = payload['sub'];
-    // const email = payload['email'];
-    // const name = payload['name'];
+    console.log("CSRF Cookie:", csrfCookie);
 
-    // console.log('Google ID:', googleId);
-    // console.log('Email:', email);
-    // console.log('Name:', name);
+    if (!token) return res.status(400).send("Missing credential");
+    
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_WEB_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const googleId = payload['sub'];
+    const email = payload['email'];
+    const name = payload['name'];
+
+    console.log('Payload:', payload);
+    console.log('Google ID:', googleId);
+    console.log('Email:', email);
+    console.log('Name:', name);
     
     // Xử lý logic đăng nhập/đăng ký user ở đây
     // Có thể gọi service để lưu vào database
-
-    return res.status(200).json({
-      success: true,
-      message: 'Google login successful',});
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    return res.redirect(`${frontendUrl}`);
   } catch (error) {
     return res.status(500).json({
       success: false,
