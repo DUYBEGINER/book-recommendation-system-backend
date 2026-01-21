@@ -12,12 +12,10 @@ const client = new OAuth2Client({
 
 export const googleLogin = async (req, res) => {
   try {
-    const { credential, g_csrf_token, select_by, state } = req.body;
+    const { credential, g_csrf_token } = req.body;
 
     console.log("Credential:", credential);
     console.log("CSRF Token:", g_csrf_token);
-    console.log("Select By:", select_by);
-    console.log("State:", state);
     
     if (!credential) return res.status(400).send("Missing credential");
     
