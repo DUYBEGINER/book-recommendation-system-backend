@@ -73,7 +73,7 @@ const getBooksByGenre = async (genreId, offset = 0, limit = 10) => {
         },
       },
     },
-  });  
+  });
   return books;
 }
 
@@ -205,11 +205,11 @@ const getBookByKeyword = async (keyword, offset = 0, limit = 10) => {
     where: {
       is_deleted: false,
       ...(keyword && {
-      OR: [
-        { title: { contains: keyword, mode: 'insensitive' } },
-        { description: { contains: keyword, mode: 'insensitive' } }
-      ],
-    }),
+        OR: [
+          { title: { contains: keyword, mode: 'insensitive' } },
+          { description: { contains: keyword, mode: 'insensitive' } }
+        ],
+      }),
     },
     orderBy: { book_id: 'asc' },
     skip: offset,
@@ -218,6 +218,30 @@ const getBookByKeyword = async (keyword, offset = 0, limit = 10) => {
   return books;
 }
 
+
+// // CREATE
+// const createBook = async (bookData) => {
+//   // Giả định bookData đã được xác thực trước khi gọi hàm này
+//   const book = await prisma.books.create({
+//     data: { 
+//       title: bookData.title,
+//       description: bookData.description,
+//       publication_year: bookData.publication_year,
+//       publisher: bookData.publisher,
+//       cover_image_url: bookData.cover_image_url,
+//       content_url: bookData.content_url,
+      
+//       // M2M: books <-> authors qua book_authors
+
+
+//     },
+
+//   });
+//   return book;
+// }
+
+
+
 // const createBook = async (bookData) => {
 //   const book = await prisma.books.create({
 //     data: bookData,
@@ -225,5 +249,13 @@ const getBookByKeyword = async (keyword, offset = 0, limit = 10) => {
 //   return book;
 // }
 
-export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks, getBookPreview, getBookByKeyword };
+export { 
+  getBooksByGenre, 
+  getBookById, 
+  getMostReadBooks, 
+  getAllBooks, 
+  getBookPreview, 
+  getBookByKeyword, 
+  // createBook 
+};
 
