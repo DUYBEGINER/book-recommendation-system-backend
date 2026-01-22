@@ -7,23 +7,41 @@ function randomId() {
 
 
 export const signAccessToken = (user) => {
+    const jti = randomId();
+
     const payload = {
         userId: user.id,
         email: user.email,
+        role: user.role
     }
 
-    const jti = randomId();
-    console.log("Generated JTI:", jti);
     const token = jwt.sign(
-        payload, 
-        process.env.JWT_SECRECT, 
-        { 
-            expiresIn: '1h' ,
+        payload,
+        process.env.JWT_ACCESS_SECRECT,
+        {
+            expiresIn: '1h',
+            subject: String(user.id),
             issuer: "tekbook-api",
             audience: "tekbook-client",
             jwtid: jti
         }
     );
-    return token;
+    return {token, jti};
 }
 
+export const signRefreshToken = (user) => {
+    const jti = randomId();
+    const token = jwt.sign(
+        { type: 'refresh' },
+        process.env.JWT_REFRESH_SECRECT,
+        {
+            expiresIn: '1y',
+            subject: String(user.id),
+            issuer: "tekbook-api",
+            audience: "tekbook-client",
+            jwtid: jti
+        }
+    );
+
+    return {token, jti};
+}
