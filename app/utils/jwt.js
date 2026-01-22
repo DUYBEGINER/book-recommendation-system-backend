@@ -45,3 +45,13 @@ export const signRefreshToken = (user) => {
 
     return {token, jti};
 }
+
+export function refreshCookieOptions() {
+  const isProd = process.env.NODE_ENV === "production";
+  return {
+    httpOnly: true,
+    secure: isProd,    // dev http => false, prod https => true
+    sameSite: "lax",  
+    path: "/auth/refresh",
+  };
+}
