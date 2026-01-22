@@ -13,7 +13,6 @@ export const authenticateToken = (req, res, next) => {
         if (err) {
             return ApiResponse.error(res, 'Invalid or expired token', 403);
         }
-
         req.user = decoded;
         next();
     });

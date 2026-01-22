@@ -31,8 +31,9 @@ export const signAccessToken = (user) => {
 
 export const signRefreshToken = (user) => {
     const jti = randomId();
+
     const token = jwt.sign(
-        { type: 'refresh' },
+        {type: 'refresh'},
         process.env.JWT_REFRESH_SECRECT,
         {
             expiresIn: '1y',
