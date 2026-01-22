@@ -1,6 +1,7 @@
 import express from 'express';
 import morgan from 'morgan';
 import cors from "cors";
+import helmet from "helmet";
 import Route from '#routes/index.js';
 import cookieParser from 'cookie-parser';
 import "dotenv/config";
@@ -12,7 +13,11 @@ const corsOptions = {
   credentials: true 
 };
 
+// Initialize Express app
 const app = express();
+
+// Apply security middleware
+app.use(helmet());
 
 app.use(morgan('common'));
 app.use(cookieParser()); 
