@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import "dotenv/config";
+import { ref } from 'process';
 
 function randomId() {
     return crypto.randomUUID();
@@ -10,41 +12,42 @@ export const signAccessToken = (user) => {
     const jti = randomId();
 
     const payload = {
-        userId: user.id,
+        userId: user.userId,
+        name: user.name,
         email: user.email,
         role: user.role
     }
 
-    const token = jwt.sign(
+    const accessToken = jwt.sign(
         payload,
         process.env.JWT_ACCESS_SECRECT,
         {
-            expiresIn: '1h',
-            subject: String(user.id),
+            expiresIn: 60,
+            subject: String(user.userId),
             issuer: "tekbook-api",
             audience: "tekbook-client",
             jwtid: jti
         }
     );
-    return {token, jti};
+    return {accessToken, accessTokenId: jti};
 }
 
 export const signRefreshToken = (user) => {
     const jti = randomId();
 
-    const token = jwt.sign(
+    const refreshToken = jwt.sign(
         {type: 'refresh'},
         process.env.JWT_REFRESH_SECRECT,
         {
-            expiresIn: '1y',
-            subject: String(user.id),
+            expiresIn: 60,
+            subject: String(user.userId),
             issuer: "tekbook-api",
             audience: "tekbook-client",
             jwtid: jti
         }
     );
 
-    return {token, jti};
+    return {refreshToken, refreshTokenId: jti};
 }
 
 export function refreshCookieOptions() {
@@ -53,6 +56,6 @@ export function refreshCookieOptions() {
     httpOnly: true,
     secure: isProd,    // dev http => false, prod https => true
     sameSite: "lax",  
-    path: "/auth/refresh",
+    path: "/api/v1/auth/refresh",
   };
 }

@@ -9,6 +9,7 @@
     "#utils/*": "./app/utils/*",
     "#lib/*": "./app/lib/*",
     "#routes/*": "./app/routes/*",
+    "#middlewares/*": "./app/middlewares/*",
     "#config/*": "./app/config/*",
     "#mappers/*": "./app/mappers/*"
   },
