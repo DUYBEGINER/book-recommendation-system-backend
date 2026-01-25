@@ -1,7 +1,6 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import "dotenv/config";
-import { ref } from 'process';
 
 function randomId() {
     return crypto.randomUUID();
