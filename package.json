@@ -11,7 +11,8 @@
     "#routes/*": "./app/routes/*",
     "#middlewares/*": "./app/middlewares/*",
     "#config/*": "./app/config/*",
-    "#mappers/*": "./app/mappers/*"
+    "#mappers/*": "./app/mappers/*",
+    "#validators/*": "./app/validators/*"
   },
   "scripts": {
     "dev": "nodemon server.js",
