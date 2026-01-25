@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { ApiResponse, logger } from "#utils/index.js";
 
 /**
@@ -17,7 +17,7 @@ export const loginRateLimit = rateLimit({
   keyGenerator: (req) => {
     // Rate limit by IP and email if available
     const email = req.body?.email;
-    const ip = req.ip || req.connection.remoteAddress;
+    const ip = ipKeyGenerator(req); // Use proper IPv6 handling
     return email ? `login_${email}_${ip}` : `login_${ip}`;
   },
   handler: (req, res) => {
@@ -49,7 +49,7 @@ export const registerRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    const ip = req.ip || req.connection.remoteAddress;
+    const ip = ipKeyGenerator(req); // Use proper IPv6 handling
     return `register_${ip}`;
   },
   handler: (req, res) => {
