@@ -38,7 +38,7 @@ export const signRefreshToken = (user) => {
         {type: 'refresh'},
         process.env.JWT_REFRESH_SECRECT,
         {
-            expiresIn: 60,
+            expiresIn: 120,
             subject: String(user.userId),
             issuer: "tekbook-api",
             audience: "tekbook-client",

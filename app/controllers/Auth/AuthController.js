@@ -103,7 +103,7 @@ export const loginWithEmailAndPassword = async (req, res) => {
     const { accessToken } = signAccessToken(userPayload);
     
     // Lưu refresh token vào session
-    sessions[refreshTokenId] = userPayload;
+    sessions[refreshTokenId] = userPayload.userId;
     
     // Set refresh token cookie
     res.cookie("refreshToken", refreshToken, refreshCookieOptions());
@@ -114,11 +114,11 @@ export const loginWithEmailAndPassword = async (req, res) => {
       refreshTokenId 
     });
     
-    return ApiResponse.success(res, 'Đăng nhập thành công', {
+    return ApiResponse.success(res, {
       user: userPayload,
       accessToken,
       expiresIn: '15m' // Access token expiration time
-    });
+    }, 'Đăng nhập thành công');
     
   } catch (error) {
     logger.error('Login error', error);
@@ -176,11 +176,11 @@ export const registerWithEmailAndPassword = async (req, res) => {
       refreshTokenId 
     });
     
-    return ApiResponse.success(res, 'Đăng ký thành công', {
+    return ApiResponse.success(res, {
       user: userPayload,
       accessToken,
       expiresIn: '15m'
-    }, 201);
+    }, 'Đăng ký thành công', 201);
     
   } catch (error) {
     logger.error('Registration error', error);

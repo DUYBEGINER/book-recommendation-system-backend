@@ -15,7 +15,7 @@ export const authenticateToken = (req, res, next) => {
     jwt.verify(token, process.env.JWT_ACCESS_SECRECT, (err, decoded) => {
         if (err) {
             console.log("Access token verification error:", err);
-            return ApiResponse.error(res, 'Invalid or expired token', 403);
+            return ApiResponse.error(res, 'Invalid or expired token', 401);
         }
         req.user = decoded;
         next();

@@ -22,7 +22,7 @@ app.use(helmet());
 app.use(morgan('common'));
 app.use(cookieParser()); 
 app.use(express.json());
-app.use(cors(corsOptions));
+app.use(cors(corsOptions)); //comment to test with postman
 app.use(express.urlencoded({ extended: false })); // GIS redirect POST form
 app.set("json replacer", (key, value) =>
   typeof value === "bigint" ? value.toString() : value

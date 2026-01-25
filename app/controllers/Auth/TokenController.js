@@ -3,6 +3,7 @@ import { ApiResponse, logger } from '#utils/index.js';
 import "dotenv/config";
 import { sessions, tmpDB } from './AuthController.js';
 import { signAccessToken, signRefreshToken, refreshCookieOptions } from '#utils/jwt.js';
+import { authService } from "#services/authService.js";
 
 export async function refreshTokenHandler(req, res) {
   const token = req.cookies?.refreshToken;
@@ -11,7 +12,7 @@ export async function refreshTokenHandler(req, res) {
   if (!token) {
     return ApiResponse.error(res, 'Refresh token missing', 401);
   }
-
+  
   jwt.verify(token, process.env.JWT_REFRESH_SECRECT, async (err, decoded) => {
     if (err) {
       console.log("Refresh token verification error:", err);
@@ -19,13 +20,22 @@ export async function refreshTokenHandler(req, res) {
     }
     console.log("tmpDB: ", tmpDB);
     console.log("Decoded refresh token:", decoded);
-    const user = tmpDB[decoded.sub];
-    if (!user) {
+    const userId = sessions[decoded.jti];
+    if (!userId) {
       return ApiResponse.error(res, 'User not found for this refresh token', 404);
     }
+    // const user = tmpDB[userId];
+    const user = await authService.getUserById(userId);
+
+    const userPayload = {
+      userId: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role || 'user'
+    };
     // Additional checks (e.g., token version) happen here
-    // const user = 
-    const { accessToken } = signAccessToken(user);
+    // const user = tmpDB[userId];
+    const { accessToken } = signAccessToken(userPayload);
     console.log("New Access Token:", accessToken);
     logger.info('Access token refreshed for user:', decoded.sub);
     // A new refresh token will also be generated here if using rotation
