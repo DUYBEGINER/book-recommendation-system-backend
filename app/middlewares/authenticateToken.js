@@ -1,23 +1,24 @@
-import jwt from 'jsonwebtoken';
+/**
+ * Authentication Middleware
+ * Verifies JWT access tokens from Authorization header
+ */
 import { ApiResponse } from "#utils/index.js";
-import "dotenv/config";
-
+import { verifyAccessToken } from "#utils/jwt.js";
 
 export const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    console.log("Authorization Header:", authHeader);
-    const token = authHeader && authHeader.split(' ')[1];
-    console.log("Access Token:", token);
-    if (!token) {
-        return ApiResponse.error(res, 'Access token is missing', 401);
-    }
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer <token>
+  
+  if (!token) {
+    return ApiResponse.error(res, 'Access token is missing', 401);
+  }
 
-    jwt.verify(token, process.env.JWT_ACCESS_SECRECT, (err, decoded) => {
-        if (err) {
-            console.log("Access token verification error:", err);
-            return ApiResponse.error(res, 'Invalid or expired token', 401);
-        }
-        req.user = decoded;
-        next();
-    });
-}
+  try {
+    const decoded = verifyAccessToken(token);
+    req.user = decoded;
+    next();
+  } catch {
+    // Token expired or invalid
+    return ApiResponse.error(res, 'Invalid or expired access token', 401);
+  }
+};
