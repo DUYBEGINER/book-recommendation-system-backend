@@ -218,36 +218,257 @@ const getBookByKeyword = async (keyword, offset = 0, limit = 10) => {
   return books;
 }
 
+/**
+ * Get books for admin panel with pagination, filters, and sorting
+ */
+const getAdminBooks = async (page = 0, size = 10, keyword = '', genreId = null, sort = '') => {
+  const skip = page * size;
+  
+  // Build where clause
+  const where = { is_deleted: false };
+  
+  if (keyword) {
+    where.OR = [
+      { title: { contains: keyword, mode: 'insensitive' } },
+      { description: { contains: keyword, mode: 'insensitive' } },
+    ];
+  }
+  
+  if (genreId) {
+    where.book_genres = {
+      some: { genre_id: BigInt(genreId) },
+    };
+  }
+  
+  // Build orderBy
+  let orderBy = { created_at: 'desc' }; // Default: newest
+  if (sort === 'oldest') {
+    orderBy = { created_at: 'asc' };
+  } else if (sort === 'title-asc') {
+    orderBy = { title: 'asc' };
+  } else if (sort === 'title-desc') {
+    orderBy = { title: 'desc' };
+  }
 
-// // CREATE
-// const createBook = async (bookData) => {
-//   // Giả định bookData đã được xác thực trước khi gọi hàm này
-//   const book = await prisma.books.create({
-//     data: { 
-//       title: bookData.title,
-//       description: bookData.description,
-//       publication_year: bookData.publication_year,
-//       publisher: bookData.publisher,
-//       cover_image_url: bookData.cover_image_url,
-//       content_url: bookData.content_url,
+  const [books, total] = await Promise.all([
+    prisma.books.findMany({
+      where,
+      orderBy,
+      skip,
+      take: size,
+      include: {
+        book_genres: {
+          include: { genres: true },
+        },
+        book_authors: {
+          include: { authors: true },
+        },
+      },
+    }),
+    prisma.books.count({ where }),
+  ]);
+
+  const content = books.map(book => ({
+    id: book.book_id.toString(),
+    title: book.title,
+    coverImageUrl: book.cover_image_url,
+    publicationYear: book.publication_year,
+    publisher: book.publisher,
+    createdAt: book.created_at,
+    genres: book.book_genres.map(bg => ({
+      id: bg.genres.genre_id.toString(),
+      name: bg.genres.genre_name,
+    })),
+    authors: book.book_authors.map(ba => ({
+      id: ba.authors.author_id.toString(),
+      name: ba.authors.author_name,
+    })),
+  }));
+
+  return {
+    content,
+    number: page,
+    size,
+    totalElements: total,
+    totalPages: Math.ceil(total / size),
+  };
+};
+
+/**
+ * Create a new book with authors and genres
+ */
+const createBook = async (bookData) => {
+  const { title, description, coverImageUrl, publicationYear, publisher, authorIds, genreIds, formats } = bookData;
+
+  const book = await prisma.books.create({
+    data: {
+      title,
+      description: description || '',
+      cover_image_url: coverImageUrl || '',
+      publication_year: publicationYear ? parseInt(publicationYear) : null,
+      publisher: publisher || null,
+    },
+  });
+
+  // Add author relationships
+  if (authorIds && authorIds.length > 0) {
+    await prisma.book_authors.createMany({
+      data: authorIds.map(authorId => ({
+        book_id: book.book_id,
+        author_id: BigInt(authorId),
+      })),
+    });
+  }
+
+  // Add genre relationships
+  if (genreIds && genreIds.length > 0) {
+    await prisma.book_genres.createMany({
+      data: genreIds.map(genreId => ({
+        book_id: book.book_id,
+        genre_id: BigInt(genreId),
+      })),
+    });
+  }
+
+  // Add book formats if provided
+  if (formats && formats.length > 0) {
+    for (const format of formats) {
+      // Find or create book type
+      let bookType = await prisma.book_types.findUnique({
+        where: { type_name: format.typeName },
+      });
       
-//       // M2M: books <-> authors qua book_authors
+      if (!bookType) {
+        bookType = await prisma.book_types.create({
+          data: { type_name: format.typeName },
+        });
+      }
 
+      await prisma.book_formats.create({
+        data: {
+          book_id: book.book_id,
+          type_id: bookType.type_id,
+          content_url: format.contentUrl,
+          total_pages: format.totalPages || null,
+          file_size_kb: format.fileSizeKb || null,
+        },
+      });
+    }
+  }
 
-//     },
+  return {
+    id: book.book_id.toString(),
+    title: book.title,
+    createdAt: book.created_at,
+  };
+};
 
-//   });
-//   return book;
-// }
+/**
+ * Update a book
+ */
+const updateBook = async (bookId, bookData) => {
+  const { title, description, coverImageUrl, publicationYear, publisher, authorIds, genreIds } = bookData;
 
+  const updateData = { updated_at: new Date() };
+  if (title !== undefined) updateData.title = title;
+  if (description !== undefined) updateData.description = description;
+  if (coverImageUrl !== undefined) updateData.cover_image_url = coverImageUrl;
+  if (publicationYear !== undefined) updateData.publication_year = publicationYear ? parseInt(publicationYear) : null;
+  if (publisher !== undefined) updateData.publisher = publisher;
 
+  const book = await prisma.books.update({
+    where: { book_id: BigInt(bookId) },
+    data: updateData,
+  });
 
-// const createBook = async (bookData) => {
-//   const book = await prisma.books.create({
-//     data: bookData,
-//   });
-//   return book;
-// }
+  // Update author relationships if provided
+  if (authorIds !== undefined) {
+    await prisma.book_authors.deleteMany({
+      where: { book_id: BigInt(bookId) },
+    });
+    
+    if (authorIds.length > 0) {
+      await prisma.book_authors.createMany({
+        data: authorIds.map(authorId => ({
+          book_id: BigInt(bookId),
+          author_id: BigInt(authorId),
+        })),
+      });
+    }
+  }
+
+  // Update genre relationships if provided
+  if (genreIds !== undefined) {
+    await prisma.book_genres.deleteMany({
+      where: { book_id: BigInt(bookId) },
+    });
+    
+    if (genreIds.length > 0) {
+      await prisma.book_genres.createMany({
+        data: genreIds.map(genreId => ({
+          book_id: BigInt(bookId),
+          genre_id: BigInt(genreId),
+        })),
+      });
+    }
+  }
+
+  return {
+    id: book.book_id.toString(),
+    title: book.title,
+    updatedAt: book.updated_at,
+  };
+};
+
+/**
+ * Soft delete a book
+ */
+const deleteBook = async (bookId) => {
+  await prisma.books.update({
+    where: { book_id: BigInt(bookId) },
+    data: { 
+      is_deleted: true,
+      updated_at: new Date(),
+    },
+  });
+  return true;
+};
+
+/**
+ * Bulk soft delete books
+ */
+const deleteBooksBulk = async (bookIds) => {
+  await prisma.books.updateMany({
+    where: {
+      book_id: { in: bookIds.map(id => BigInt(id)) },
+    },
+    data: { 
+      is_deleted: true,
+      updated_at: new Date(),
+    },
+  });
+  return true;
+};
+
+/**
+ * Get book formats (for reading)
+ */
+const getBookFormats = async (bookId) => {
+  const formats = await prisma.book_formats.findMany({
+    where: { book_id: BigInt(bookId) },
+    include: {
+      book_types: true,
+    },
+  });
+
+  return formats.map(format => ({
+    id: format.format_id.toString(),
+    typeName: format.book_types.type_name,
+    contentUrl: format.content_url,
+    totalPages: format.total_pages,
+    fileSizeKb: format.file_size_kb,
+  }));
+};
 
 export { 
   getBooksByGenre, 
@@ -255,7 +476,26 @@ export {
   getMostReadBooks, 
   getAllBooks, 
   getBookPreview, 
-  getBookByKeyword, 
-  // createBook 
+  getBookByKeyword,
+  getAdminBooks,
+  createBook,
+  updateBook,
+  deleteBook,
+  deleteBooksBulk,
+  getBookFormats,
 };
 
+export const bookService = {
+  getBooksByGenre,
+  getBookById,
+  getMostReadBooks,
+  getAllBooks,
+  getBookPreview,
+  getBookByKeyword,
+  getAdminBooks,
+  createBook,
+  updateBook,
+  deleteBook,
+  deleteBooksBulk,
+  getBookFormats,
+};

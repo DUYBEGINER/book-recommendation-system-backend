@@ -122,3 +122,5 @@ export const toBookSearchResponse =  (books) => {
   return books.map(toBookDetailItem).filter(Boolean);
 }; 
 
+// Export helper functions for use by other mappers
+export { mapAuthors, mapGenres };
