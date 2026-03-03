@@ -1,6 +1,7 @@
 /**
  * Authentication Controller
  * Handles login, registration, logout with Redis-backed sessions
+ * Supports email/password and OAuth (Google) authentication
  */
 import { ApiResponse, logger } from "#utils/index.js";
 import { OAuth2Client } from 'google-auth-library';
@@ -16,15 +17,32 @@ import { authService } from "#services/authService.js";
 import { sessionStore } from "#services/sessionStore.js";
 import { hashPassword, comparePassword } from "#utils/hashPassword.js";
 
-
-const client = new OAuth2Client({
-  clientId: process.env.GOOGLE_WEB_CLIENT_ID,
-  clientSecret: process.env.GOOGLE_WEB_SECRECT,
-  redirectUri: "http://localhost:8080/api/v1/auth/google"
-});
+// =============================================================================
+// GOOGLE OAUTH CONFIGURATION
+// =============================================================================
 
 /**
- * Extract client metadata for session tracking
+ * Initialize Google OAuth2 client
+ * Client ID and Secret should be set via environment variables
+ */
+const googleOAuthClient = new OAuth2Client({
+  clientId: process.env.GOOGLE_WEB_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_WEB_SECRET,
+});
+
+/** Frontend URL for OAuth redirects */
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+/**
+ * Extract client metadata from request for session tracking
+ * Used for security auditing and multi-device session management
+ * 
+ * @param {Request} req - Express request object
+ * @returns {Object} Client metadata (userAgent, ip)
  */
 function getClientMetadata(req) {
   return {
@@ -34,68 +52,157 @@ function getClientMetadata(req) {
 }
 
 /**
- * POST /auth/google - Google OAuth login
- * TODO: Implement proper Google OAuth with database user creation
+ * Build user payload for JWT tokens
+ * Only include necessary claims to minimize token size
+ * 
+ * @param {Object} user - User object from database
+ * @returns {Object} User payload for tokens
+ */
+function buildUserPayload(user) {
+  return {
+    userId: user.id,
+    email: user.email,
+    fullName: user.fullName,
+    role: user.role || 'user',
+  };
+}
+
+/**
+ * Create session and set refresh token cookie
+ * Common logic used by all authentication methods
+ * 
+ * @param {Response} res - Express response object
+ * @param {string} userId - User's database ID
+ * @param {Object} metadata - Client metadata
+ * @returns {Object} Generated tokens
+ */
+async function createSessionAndSetCookie(res, userId, metadata) {
+  const { refreshToken, refreshTokenId } = signRefreshToken(userId);
+  
+  // Store session in Redis with hashed token
+  await sessionStore.createSession(userId, refreshTokenId, refreshToken, metadata);
+  
+  // Set HttpOnly cookie for refresh token
+  res.cookie("refreshToken", refreshToken, refreshCookieOptions());
+  
+  return { refreshToken, refreshTokenId };
+}
+
+// =============================================================================
+// GOOGLE OAUTH HANDLER
+// =============================================================================
+
+/**
+ * POST /auth/google - Google OAuth Sign-In
+ * 
+ * Flow:
+ * 1. Frontend uses Google Sign-In button (redirect mode)
+ * 2. Google redirects to this endpoint with ID token
+ * 3. Verify ID token with Google
+ * 4. Find or create user in database
+ * 5. Create session and redirect to frontend
+ * 
+ * Security:
+ * - Validates CSRF token from Google
+ * - Verifies ID token signature with Google
+ * - Uses database user ID (not Google ID) for sessions
+ * 
+ * @param {Request} req - Express request with credential and g_csrf_token
+ * @param {Response} res - Express response (redirects to frontend)
  */
 export const googleLogin = async (req, res) => {
   try {
-    const token = req.body?.credential;
-    const { g_csrf_token } = req.body;
+    const { credential: idToken, g_csrf_token } = req.body;
     const csrfCookie = req.cookies?.g_csrf_token;
 
-    if (!token) {
-      return ApiResponse.error(res, 'Token is required', 400);
+    // Validate required fields
+    if (!idToken) {
+      logger.warn('Google login: Missing ID token');
+      return res.redirect(`${FRONTEND_URL}/oauth/callback?oauth=error&message=missing_token`);
     }
 
-    // Verify CSRF token
-    if (g_csrf_token !== csrfCookie) {
-      logger.warn('Google login: CSRF mismatch');
-      return ApiResponse.error(res, 'Invalid CSRF token', 403);
+    // Verify CSRF token to prevent cross-site request forgery
+    if (!g_csrf_token || g_csrf_token !== csrfCookie) {
+      logger.warn('Google login: CSRF token mismatch');
+      return res.redirect(`${FRONTEND_URL}/oauth/callback?oauth=error&message=csrf_invalid`);
     }
 
-    const ticket = await client.verifyIdToken({
-      idToken: token,
+    // Verify the ID token with Google
+    const ticket = await googleOAuthClient.verifyIdToken({
+      idToken,
       audience: process.env.GOOGLE_WEB_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();
-    const googleId = payload['sub'];
-    const email = payload['email'];
-    const name = payload['name'];
-
-    // TODO: Find or create user in database
-    // For now, using a simple user object
-    const userPayload = { 
-      userId: googleId, 
-      email, 
-      fullName: name, 
-      role: 'user' 
+    
+    // Extract user info from Google token
+    const googleProfile = {
+      email: payload.email,
+      fullName: payload.name,
+      avatarUrl: payload.picture,
     };
 
-    // Generate tokens
-    const { refreshToken, refreshTokenId } = signRefreshToken(googleId);
+    logger.info('Google token verified', { email: googleProfile.email });
+
+    // Find existing user or create new account
+    const user = await authService.findOrCreateOAuthUser(googleProfile);
+
+    // Check if account is banned
+    if (user.isBan) {
+      logger.warn('Google login: Account banned', { 
+        email: user.email, 
+        userId: user.id 
+      });
+      return res.redirect(`${FRONTEND_URL}/oauth/callback?oauth=error&message=account_banned`);
+    }
+
+    // Build token payload using database user ID (not Google ID!)
+    const userPayload = buildUserPayload(user);
     const { accessToken } = signAccessToken(userPayload);
     
-    // Store session in Redis
+    // Create session and set refresh token cookie
     const metadata = getClientMetadata(req);
-    await sessionStore.createSession(googleId, refreshTokenId, refreshToken, metadata);
+    const { refreshTokenId } = await createSessionAndSetCookie(res, user.id, metadata);
     
-    // Set cookie
-    res.cookie("refreshToken", refreshToken, refreshCookieOptions());
-    
-    logger.info('Google login successful', { email, googleId });
-    
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    // Redirect to frontend with access token (refresh token is in HttpOnly cookie)
-    return res.redirect(`${frontendUrl}/oauth/callback?oauth=success&token=${accessToken}`);
+    logger.info('Google login successful', { 
+      email: user.email, 
+      userId: user.id, 
+      isNewUser: user.isNewUser,
+      jti: refreshTokenId 
+    });
+
+    // Redirect to frontend OAuth callback page
+    // Access token passed via URL (short-lived, acceptable for redirect)
+    // Refresh token is in HttpOnly cookie
+    return res.redirect(`${FRONTEND_URL}/oauth/callback?oauth=success&token=${accessToken}`);
+
   } catch (error) {
-    return ApiResponse.error(res, 'Google login failed', 500, error.message);
+    logger.error('Google login error', { error: error.message, stack: error.stack });
+    
+    // Determine error type for user-friendly message
+    const errorMessage = error.message?.includes('Token used too late') 
+      ? 'token_expired'
+      : 'server_error';
+    
+    return res.redirect(`${FRONTEND_URL}/oauth/callback?oauth=error&message=${errorMessage}`);
   }
 };
 
+// =============================================================================
+// EMAIL/PASSWORD AUTHENTICATION
+// =============================================================================
+
 /**
- * POST /auth/login - Email/password login
- * Creates Redis-backed session with hashed refresh token
+ * POST /auth/login - Email/Password login
+ * 
+ * Flow:
+ * 1. Validate email and password
+ * 2. Find user by email
+ * 3. Verify password hash
+ * 4. Create session and return tokens
+ * 
+ * @param {Request} req - Express request with email and password
+ * @param {Response} res - Express response with user data and tokens
  */
 export const loginWithEmailAndPassword = async (req, res) => {
   try {
@@ -103,7 +210,7 @@ export const loginWithEmailAndPassword = async (req, res) => {
     
     logger.info('Login attempt', { email });
     
-    // Find user in database
+    // Find user by email (includes password hash)
     const user = await authService.findUserByEmail(email);
     
     if (!user) {
@@ -117,7 +224,7 @@ export const loginWithEmailAndPassword = async (req, res) => {
       return ApiResponse.error(res, 'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên', 403);
     }
     
-    // Verify password
+    // Verify password using bcrypt
     const isPasswordValid = await comparePassword(password, user.password);
     
     if (!isPasswordValid) {
@@ -125,24 +232,13 @@ export const loginWithEmailAndPassword = async (req, res) => {
       return ApiResponse.error(res, 'Email hoặc mật khẩu không đúng', 401);
     }
     
-    // Build user payload for tokens
-    const userPayload = {
-      userId: user.id,
-      email: user.email,
-      fullName: user.fullName,
-      role: user.role || 'user'
-    };
-    
-    // Generate tokens
-    const { refreshToken, refreshTokenId } = signRefreshToken(user.id);
+    // Build token payload and generate access token
+    const userPayload = buildUserPayload(user);
     const { accessToken } = signAccessToken(userPayload);
     
-    // Store session in Redis (hashed token, with TTL)
+    // Create session and set refresh token cookie
     const metadata = getClientMetadata(req);
-    await sessionStore.createSession(user.id, refreshTokenId, refreshToken, metadata);
-    
-    // Set HttpOnly cookie for refresh token
-    res.cookie("refreshToken", refreshToken, refreshCookieOptions());
+    const { refreshTokenId } = await createSessionAndSetCookie(res, user.id, metadata);
     
     logger.info('Login successful', { email, userId: user.id, jti: refreshTokenId });
     
@@ -153,13 +249,22 @@ export const loginWithEmailAndPassword = async (req, res) => {
     }, 'Đăng nhập thành công');
     
   } catch (error) {
-    logger.error('Login error', error);
+    logger.error('Login error', { error: error.message, stack: error.stack });
     return ApiResponse.error(res, 'Lỗi hệ thống. Vui lòng thử lại sau', 500);
   }
 };
 
 /**
  * POST /auth/register - New user registration
+ * 
+ * Flow:
+ * 1. Check if email already exists
+ * 2. Hash password with bcrypt
+ * 3. Create user in database
+ * 4. Create session and return tokens
+ * 
+ * @param {Request} req - Express request with email, password, fullName
+ * @param {Response} res - Express response with user data and tokens
  */
 export const registerWithEmailAndPassword = async (req, res) => {
   try {
@@ -167,7 +272,7 @@ export const registerWithEmailAndPassword = async (req, res) => {
     
     logger.info('Registration attempt', { email, fullName });
     
-    // Check if email exists
+    // Check if email is already registered
     const existingUser = await authService.findUserByEmail(email);
     
     if (existingUser) {
@@ -175,39 +280,27 @@ export const registerWithEmailAndPassword = async (req, res) => {
       return ApiResponse.error(res, 'Email đã được sử dụng', 409);
     }
     
-    // Hash password with bcrypt
+    // Hash password with bcrypt (cost factor from env or default 12)
     const hashedPassword = await hashPassword(password);
     
-    // Create user
+    // Create new user
     const newUser = await authService.createUser({
-      username: email.split('@')[0],
       email,
       password: hashedPassword,
       fullName,
       role: 'user',
-      isActivate: false,
+      isActivate: false, // Requires email verification
     });
     
-    // Build payload
-    const userPayload = {
-      userId: newUser.id,
-      email: newUser.email,
-      fullName: newUser.fullName,
-      role: newUser.role,
-    };
-    
-    // Generate tokens
-    const { refreshToken, refreshTokenId } = signRefreshToken(newUser.id);
+    // Build token payload and generate access token
+    const userPayload = buildUserPayload(newUser);
     const { accessToken } = signAccessToken(userPayload);
     
-    // Store session in Redis
+    // Create session and set refresh token cookie
     const metadata = getClientMetadata(req);
-    await sessionStore.createSession(newUser.id, refreshTokenId, refreshToken, metadata);
+    const { refreshTokenId } = await createSessionAndSetCookie(res, newUser.id, metadata);
     
-    // Set cookie
-    res.cookie("refreshToken", refreshToken, refreshCookieOptions());
-    
-    logger.info('Registration successful', { email, userId: newUser.id });
+    logger.info('Registration successful', { email, userId: newUser.id, jti: refreshTokenId });
     
     return ApiResponse.success(res, {
       user: userPayload,
@@ -216,68 +309,80 @@ export const registerWithEmailAndPassword = async (req, res) => {
     }, 'Đăng ký thành công', 201);
     
   } catch (error) {
-    logger.error('Registration error', error);
+    logger.error('Registration error', { error: error.message, stack: error.stack });
     return ApiResponse.error(res, 'Lỗi hệ thống. Vui lòng thử lại sau', 500);
   }
 };
 
+// =============================================================================
+// LOGOUT HANDLERS
+// =============================================================================
+
 /**
  * POST /auth/logout - Logout current device
- * Revokes the current refresh token from Redis
+ * 
+ * Revokes the current refresh token from Redis.
+ * Public endpoint - works even with invalid/expired tokens.
+ * 
+ * @param {Request} req - Express request with refreshToken cookie
+ * @param {Response} res - Express response
  */
 export const logout = async (req, res) => {
   try {
     const token = req.cookies?.refreshToken;
     
     if (!token) {
-      // Already logged out, just clear cookie
+      // No token present - user already logged out, just clear cookie
       res.clearCookie("refreshToken", clearRefreshCookieOptions());
       return ApiResponse.success(res, null, 'Đăng xuất thành công');
     }
     
     try {
-      // Decode token to get jti and userId
+      // Attempt to decode token and revoke session
       const decoded = verifyRefreshToken(token);
-      const userId = decoded.sub;
-      const jti = decoded.jti;
+      const { sub: userId, jti } = decoded;
       
-      // Revoke session in Redis
+      // Revoke session from Redis
       await sessionStore.revokeSession(userId, jti);
       
       logger.info('Logout successful', { userId, jti });
     } catch (err) {
-      // Token invalid/expired - just clear cookie
+      // Token invalid/expired - log and continue (still clear cookie)
       logger.warn('Logout with invalid token', { error: err.message });
     }
     
-    // Always clear the cookie
+    // Always clear the cookie, regardless of token validity
     res.clearCookie("refreshToken", clearRefreshCookieOptions());
     
     return ApiResponse.success(res, null, 'Đăng xuất thành công');
     
   } catch (error) {
-    logger.error('Logout error', error);
+    logger.error('Logout error', { error: error.message });
     return ApiResponse.error(res, 'Lỗi hệ thống', 500);
   }
 };
 
 /**
  * POST /auth/logout-all - Logout all devices
- * Revokes all refresh tokens for the user
+ * 
+ * Revokes all refresh tokens for the authenticated user.
+ * Requires valid access token (protected route).
+ * 
+ * @param {Request} req - Express request with authenticated user
+ * @param {Response} res - Express response with revoked count
  */
 export const logoutAll = async (req, res) => {
   try {
-    // User must be authenticated (via access token)
     const userId = req.user?.userId;
     
     if (!userId) {
       return ApiResponse.error(res, 'Không có quyền truy cập', 401);
     }
     
-    // Revoke all sessions
+    // Revoke all sessions for this user
     const revokedCount = await sessionStore.revokeAllSessions(userId);
     
-    // Clear current cookie
+    // Clear current device's cookie
     res.clearCookie("refreshToken", clearRefreshCookieOptions());
     
     logger.info('Logout all successful', { userId, revokedCount });
@@ -287,13 +392,23 @@ export const logoutAll = async (req, res) => {
     }, 'Đã đăng xuất khỏi tất cả thiết bị');
     
   } catch (error) {
-    logger.error('Logout all error', error);
+    logger.error('Logout all error', { error: error.message });
     return ApiResponse.error(res, 'Lỗi hệ thống', 500);
   }
 };
 
+// =============================================================================
+// SESSION MANAGEMENT
+// =============================================================================
+
 /**
- * GET /auth/sessions - Get all active sessions (for account management)
+ * GET /auth/sessions - Get all active sessions
+ * 
+ * Returns list of active sessions for account management UI.
+ * Allows users to see where they're logged in.
+ * 
+ * @param {Request} req - Express request with authenticated user
+ * @param {Response} res - Express response with sessions list
  */
 export const getSessions = async (req, res) => {
   try {
@@ -308,7 +423,7 @@ export const getSessions = async (req, res) => {
     return ApiResponse.success(res, { sessions }, 'Danh sách phiên đăng nhập');
     
   } catch (error) {
-    logger.error('Get sessions error', error);
+    logger.error('Get sessions error', { error: error.message });
     return ApiResponse.error(res, 'Lỗi hệ thống', 500);
   }
 };
