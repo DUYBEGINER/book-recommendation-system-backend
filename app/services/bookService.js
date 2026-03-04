@@ -75,7 +75,8 @@ const getBooksByGenre = async (genreId, page = 0, size = 10, sort = 'newest') =>
 
   const skip = page * size;
 
-  const [books, total] = await Promise.all([
+
+  const [books, total] = await prisma.$transaction([
     prisma.books.findMany({
       where,
       orderBy,
@@ -132,9 +133,6 @@ const getBookById = async (bookId) => {
       book_id: true,
       title: true,
       cover_image_url: true,
-      publication_year: true,
-      description: true,
-      publisher: true,
       book_authors: {
         select: {
           authors: true
@@ -267,23 +265,23 @@ const getBookByKeyword = async (keyword, offset = 0, limit = 10) => {
  */
 const getAdminBooks = async (page = 0, size = 10, keyword = '', genreId = null, sort = '') => {
   const skip = page * size;
-  
+
   // Build where clause
   const where = { is_deleted: false };
-  
+
   if (keyword) {
     where.OR = [
       { title: { contains: keyword, mode: 'insensitive' } },
       { description: { contains: keyword, mode: 'insensitive' } },
     ];
   }
-  
+
   if (genreId) {
     where.book_genres = {
       some: { genre_id: BigInt(genreId) },
     };
   }
-  
+
   // Build orderBy
   let orderBy = { created_at: 'desc' }; // Default: newest
   if (sort === 'oldest') {
@@ -381,7 +379,7 @@ const createBook = async (bookData) => {
       let bookType = await prisma.book_types.findUnique({
         where: { type_name: format.typeName },
       });
-      
+
       if (!bookType) {
         bookType = await prisma.book_types.create({
           data: { type_name: format.typeName },
@@ -430,7 +428,7 @@ const updateBook = async (bookId, bookData) => {
     await prisma.book_authors.deleteMany({
       where: { book_id: BigInt(bookId) },
     });
-    
+
     if (authorIds.length > 0) {
       await prisma.book_authors.createMany({
         data: authorIds.map(authorId => ({
@@ -446,7 +444,7 @@ const updateBook = async (bookId, bookData) => {
     await prisma.book_genres.deleteMany({
       where: { book_id: BigInt(bookId) },
     });
-    
+
     if (genreIds.length > 0) {
       await prisma.book_genres.createMany({
         data: genreIds.map(genreId => ({
@@ -470,7 +468,7 @@ const updateBook = async (bookId, bookData) => {
 const deleteBook = async (bookId) => {
   await prisma.books.update({
     where: { book_id: BigInt(bookId) },
-    data: { 
+    data: {
       is_deleted: true,
       updated_at: new Date(),
     },
@@ -486,7 +484,7 @@ const deleteBooksBulk = async (bookIds) => {
     where: {
       book_id: { in: bookIds.map(id => BigInt(id)) },
     },
-    data: { 
+    data: {
       is_deleted: true,
       updated_at: new Date(),
     },
@@ -514,12 +512,12 @@ const getBookFormats = async (bookId) => {
   }));
 };
 
-export { 
-  getBooksByGenre, 
-  getBookById, 
-  getMostReadBooks, 
-  getAllBooks, 
-  getBookPreview, 
+export {
+  getBooksByGenre,
+  getBookById,
+  getMostReadBooks,
+  getAllBooks,
+  getBookPreview,
   getBookByKeyword,
   getAdminBooks,
   createBook,
