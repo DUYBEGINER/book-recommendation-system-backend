@@ -54,14 +54,31 @@ const getBookById = async (req, res) => {
 // Controller to get books by genre
 const getBooksByGenre = async (req, res) => {
     const { genreId } = req.params;
+    const { page = 0, size = 10, sort = 'newest' } = req.query;
 
     // Validate genreId
     if (!genreId) { return ApiResponse.error(res, 'Genre ID is required', 400); }
 
+    const pageNum = parseInt(page);
+    const sizeNum = parseInt(size);
+
+    if (Number.isNaN(pageNum) || pageNum < 0) {
+        return ApiResponse.error(res, 'Invalid page parameter', 400);
+    }
+    if (Number.isNaN(sizeNum) || sizeNum < 1 || sizeNum > 100) {
+        return ApiResponse.error(res, 'Invalid size parameter (1-100)', 400);
+    }
+
+    const allowedSorts = ['newest', 'popular', 'title-asc', 'title-desc'];
+    const validSort = allowedSorts.includes(sort) ? sort : 'newest';
+
     try {
-        const books = await getBooksByGenreService(genreId);
-        const bookResponse = toBookListResponse(books);
-        return ApiResponse.success(res, bookResponse, 'Books fetched successfully');
+        const result = await getBooksByGenreService(genreId, pageNum, sizeNum, validSort);
+        const bookResponse = toBookListResponse(result.data);
+        return ApiResponse.success(res, {
+            content: bookResponse,
+            ...result.pagination,
+        }, 'Books fetched successfully');
     } catch (err) {
         logger.error(`Error fetching books for genre ID ${genreId}: ${err.message}`);
         return ApiResponse.error(res, 'Failed to fetch books', 500);

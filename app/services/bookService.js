@@ -43,38 +43,82 @@ const getAllBooks = async (page = 0, size = 12) => {
   };
 }
 
-// Function to get books by genre
-const getBooksByGenre = async (genreId, offset = 0, limit = 10) => {
-  const books = await prisma.books.findMany({
-    where: {
-      is_deleted: false,
-      book_genres: {
-        some: {
-          genre_id: BigInt(genreId),
-        },
-      },
+// Function to get books by genre with pagination
+const getBooksByGenre = async (genreId, page = 0, size = 10, sort = 'newest') => {
+  // Determine sorting order
+  let orderBy;
+  switch (sort) {
+    case 'popular':
+      orderBy = { book_id: "desc" }; // Can be updated with actual popularity metric
+      break;
+    case 'newest':
+      orderBy = { created_at: "desc" };
+      break;
+    case 'title-asc':
+      orderBy = { title: "asc" };
+      break;
+    case 'title-desc':
+      orderBy = { title: "desc" };
+      break;
+    default:
+      orderBy = { book_id: "asc" };
+  }
 
+  const where = {
+    is_deleted: false,
+    book_genres: {
+      some: {
+        genre_id: BigInt(genreId),
+      },
     },
-    orderBy: { book_id: "asc" },
-    skip: offset,
-    take: limit,
-    select: {
-      book_id: true,
-      title: true,
-      cover_image_url: true,
-      book_authors: {
-        select: {
-          authors: {
-            select: {
-              author_id: true,
-              author_name: true,
+  };
+
+  const skip = page * size;
+
+  const [books, total] = await Promise.all([
+    prisma.books.findMany({
+      where,
+      orderBy,
+      skip,
+      take: size,
+      select: {
+        book_id: true,
+        title: true,
+        cover_image_url: true,
+        book_authors: {
+          select: {
+            authors: {
+              select: {
+                author_id: true,
+                author_name: true,
+              },
+            },
+          },
+        },
+        book_genres: {
+          select: {
+            genres: {
+              select: {
+                genre_id: true,
+                genre_name: true,
+              },
             },
           },
         },
       },
+    }),
+    prisma.books.count({ where }),
+  ]);
+
+  return {
+    data: books,
+    pagination: {
+      page,
+      size,
+      total,
+      totalPages: Math.ceil(total / size),
     },
-  });
-  return books;
+  };
 }
 
 //Function to get books by book_id
