@@ -18,7 +18,6 @@ export const toFavoriteResponse = (favorite) => {
   if (!favorite) return null;
   
   const book = favorite.books;
-  console.log("Mapping favorite entity:", favorite);
   return {
     id: favorite.favorite_id?.toString(),
     bookId: favorite.book_id?.toString(),
@@ -55,4 +54,21 @@ export const toFavoriteListResponse = (favorites) => {
   if (!Array.isArray(favorites)) return [toFavoriteResponse(favorites)].filter(Boolean);
   
   return favorites.map(toFavoriteResponse).filter(Boolean);
+};
+
+/**
+ * Transform paginated favorite result to response format
+ * @param {Object} result - { data: favorites[], pagination: {...} }
+ * @returns {Object} Formatted paginated response
+ */
+export const toFavoritePaginatedResponse = (result) => {
+  if (!result) return null;
+  
+  return {
+    content: toFavoriteListResponse(result.data),
+    page: result.pagination?.page ?? 0,
+    size: result.pagination?.size ?? 0,
+    totalElements: result.pagination?.totalElements ?? 0,
+    totalPages: result.pagination?.totalPages ?? 0,
+  };
 };

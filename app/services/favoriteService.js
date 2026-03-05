@@ -2,40 +2,55 @@ import { prisma } from '#lib/prisma.js';
 
 /**
  * Favorite Service
- * 
- * Best Practice: Service returns raw Prisma entities
- * Mapping to API response format is done in controller via mapper
- */
 
 /**
- * Get user's favorite books
- * Returns raw Prisma entities with book relation
+ * Get user's favorite books with pagination
+ * Returns raw Prisma entities + pagination metadata
  */
-export const getUserFavorites = async (userId) => {
-  return prisma.favorites.findMany({
-    where: { user_id: BigInt(userId) },
-    orderBy: { added_at: 'desc' },
-    select: {
-      favorite_id: true,
-      book_id: true,
-      books: {
-        select: {
-          title: true,
-          cover_image_url: true,
-          book_authors: {
-            select: {
-              authors: {
-                select: {
-                  author_id: true,
-                  author_name: true,
+export const getUserFavorites = async (userId, page = 0, size = 12) => {
+  const skip = page * size;
+
+  const [favorites, total] = await Promise.all([
+    prisma.favorites.findMany({
+      where: { user_id: BigInt(userId) },
+      orderBy: { added_at: 'desc' },
+      skip,
+      take: size,
+      select: {
+        favorite_id: true,
+        book_id: true,
+        books: {
+          select: {
+            title: true,
+            cover_image_url: true,
+            book_authors: {
+              select: {
+                authors: {
+                  select: {
+                    author_id: true,
+                    author_name: true,
+                  },
                 },
               },
             },
           },
         },
       },
+    }),
+    prisma.favorites.count({
+      where: { user_id: BigInt(userId) },
+    }),
+  ]);
+
+  return {
+    data: favorites,
+    pagination: {
+      page,
+      size,
+      totalElements: total,
+      totalPages: Math.ceil(total / size),
     },
-  });
+  };
 };
 
 /**

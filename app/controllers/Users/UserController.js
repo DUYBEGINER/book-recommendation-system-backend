@@ -17,7 +17,7 @@ import { hashPassword, comparePassword } from "#utils/hashPassword.js";
 
 // Import mappers
 import { toUserResponse, toUserProfileResponse, toUserAvatarResponse, toUserPaginatedResponse } from "#mappers/user.mapper.js";
-import { toFavoriteListResponse, toFavoriteActionResponse } from "#mappers/favorite.mapper.js";
+import { toFavoriteListResponse, toFavoriteActionResponse, toFavoritePaginatedResponse } from "#mappers/favorite.mapper.js";
 import { toHistoryPaginatedResponse, toHistoryActionResponse } from "#mappers/history.mapper.js";
 import { toRatingListResponse, toRatingCreateResponse, toAverageRatingResponse } from "#mappers/rating.mapper.js";
 import { toBookmarkListResponse, toBookmarkResponse } from "#mappers/bookmark.mapper.js";
@@ -159,18 +159,19 @@ export const changeUserPassword = async (req, res) => {
 // ============================================
 
 /**
- * GET /users/:userId/favorites - Get user's favorites
+ * GET /users/:userId/favorites - Get user's favorites (paginated)
  */
 export const getUserFavorites = async (req, res) => {
   try {
     const { userId } = req.params;
+    const { page = 0, size = 12 } = req.query;
     
-    // 1. Call service to get raw entities
-    const favorites = await favoriteService.getUserFavorites(userId);
+    // 1. Call service to get raw entities with pagination
+    const result = await favoriteService.getUserFavorites(userId, parseInt(page), parseInt(size));
     
     // 2. Transform via mapper
-    const response = toFavoriteListResponse(favorites);
-    console.log("Mapper response: ", response);
+    const response = toFavoritePaginatedResponse(result);
+    
     return ApiResponse.success(res, response, 'Favorites fetched successfully');
   } catch (error) {
     logger.error('Get favorites error:', error);
