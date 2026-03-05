@@ -132,6 +132,8 @@ const getBookById = async (bookId) => {
       book_id: true,
       title: true,
       cover_image_url: true,
+      description: true,
+      publisher: true,
       book_authors: {
         select: {
           authors: true
