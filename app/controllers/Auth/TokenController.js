@@ -71,6 +71,7 @@ export async function refreshTokenHandler(req, res) {
       email: user.email,
       fullName: user.fullName,
       role: user.role || 'user',
+      avatarUrl: user.avatarUrl || null,
     };
     
     // Generate new tokens
