@@ -64,6 +64,7 @@ function buildUserPayload(user) {
     email: user.email,
     fullName: user.fullName,
     role: user.role || 'user',
+    avatarUrl: user.avatarUrl || null,
   };
 }
 
@@ -234,6 +235,7 @@ export const loginWithEmailAndPassword = async (req, res) => {
     
     // Build token payload and generate access token
     const userPayload = buildUserPayload(user);
+    console.log('User payload for token:', userPayload);
     const { accessToken } = signAccessToken(userPayload);
     
     // Create session and set refresh token cookie

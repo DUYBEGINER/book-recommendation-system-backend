@@ -15,13 +15,13 @@ export const getUserFavorites = async (userId) => {
   return prisma.favorites.findMany({
     where: { user_id: BigInt(userId) },
     orderBy: { added_at: 'desc' },
-    include: {
+    select: {
+      favorite_id: true,
+      book_id: true,
       books: {
         select: {
-          book_id: true,
           title: true,
           cover_image_url: true,
-          publication_year: true,
           book_authors: {
             select: {
               authors: {

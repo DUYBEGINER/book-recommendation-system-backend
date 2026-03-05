@@ -170,7 +170,7 @@ export const getUserFavorites = async (req, res) => {
     
     // 2. Transform via mapper
     const response = toFavoriteListResponse(favorites);
-    
+    console.log("Mapper response: ", response);
     return ApiResponse.success(res, response, 'Favorites fetched successfully');
   } catch (error) {
     logger.error('Get favorites error:', error);

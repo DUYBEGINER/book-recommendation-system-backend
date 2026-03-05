@@ -18,18 +18,13 @@ export const toFavoriteResponse = (favorite) => {
   if (!favorite) return null;
   
   const book = favorite.books;
-  
+  console.log("Mapping favorite entity:", favorite);
   return {
     id: favorite.favorite_id?.toString(),
     bookId: favorite.book_id?.toString(),
-    addedAt: favorite.added_at || null,
-    book: book ? {
-      id: book.book_id?.toString(),
-      title: book.title,
-      coverImageUrl: book.cover_image_url || null,
-      publicationYear: book.publication_year || null,
-      authors: mapAuthors(book.book_authors),
-    } : null,
+    title: book.title,
+    coverImageUrl: book.cover_image_url || null,
+    authors: mapAuthors(book.book_authors),
   };
 };
 

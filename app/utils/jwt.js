@@ -25,15 +25,15 @@ export function generateJti() {
 export function signAccessToken(user) {
   const jti = generateJti();
 
-  const payload = {
-    userId: user.userId,
-    email: user.email,
-    fullName: user.fullName,
-    role: user.role,
-  };
+  // const payload = {
+  //   userId: user.userId,
+  //   email: user.email,
+  //   fullName: user.fullName,
+  //   role: user.role,
+  // };
 
   const accessToken = jwt.sign(
-    payload,
+    user,
     process.env.JWT_ACCESS_SECRECT,
     {
       expiresIn: TOKEN_EXPIRY.ACCESS,

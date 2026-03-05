@@ -75,7 +75,6 @@ const getBooksByGenre = async (genreId, page = 0, size = 10, sort = 'newest') =>
 
   const skip = page * size;
 
-
   const [books, total] = await prisma.$transaction([
     prisma.books.findMany({
       where,

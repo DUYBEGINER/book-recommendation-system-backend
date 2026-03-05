@@ -71,6 +71,7 @@ router.get("/auth/profile", authenticateToken, (req, res) => {
       email: req.user.email,
       fullName: req.user.fullName,
       role: req.user.role,
+      avatarUrl: req.user.avatarUrl || null,
     }
   });
 });
