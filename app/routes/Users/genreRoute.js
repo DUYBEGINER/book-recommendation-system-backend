@@ -4,6 +4,6 @@ import { getAllGenres, getGenreById } from '#controllers/Users/GenreController.j
 const router = express.Router();
 
 router.get('/genres', getAllGenres);
-router.get('/genres/:id', getGenreById);
+router.get('/genres/:genreId', getGenreById);
 
 export {router as UserGenreRouter};

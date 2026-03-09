@@ -134,6 +134,7 @@ const getBookById = async (bookId) => {
       cover_image_url: true,
       description: true,
       publisher: true,
+      publication_year: true,
       book_authors: {
         select: {
           authors: true
