@@ -17,7 +17,7 @@ import { hashPassword, comparePassword } from "#utils/hashPassword.js";
 
 // Import mappers
 import { toUserResponse, toUserProfileResponse, toUserAvatarResponse, toUserPaginatedResponse } from "#mappers/user.mapper.js";
-import { toFavoriteListResponse, toFavoriteActionResponse, toFavoritePaginatedResponse } from "#mappers/favorite.mapper.js";
+import { toFavoriteActionResponse, toFavoritePaginatedResponse } from "#mappers/favorite.mapper.js";
 import { toHistoryPaginatedResponse, toHistoryActionResponse } from "#mappers/history.mapper.js";
 import { toRatingListResponse, toRatingCreateResponse, toAverageRatingResponse } from "#mappers/rating.mapper.js";
 import { toBookmarkListResponse, toBookmarkResponse } from "#mappers/bookmark.mapper.js";

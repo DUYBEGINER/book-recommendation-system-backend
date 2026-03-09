@@ -145,6 +145,16 @@ const getBookById = async (bookId) => {
           genres: true,
         },
       },
+      book_formats: {
+        select: {
+          book_types: {
+            select: {
+              type_name: true,
+            },
+          },
+          content_url: true,
+        },
+      },
     },
   });
   return book;

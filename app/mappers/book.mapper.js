@@ -57,6 +57,10 @@ const toBookDetailItem = (book) => {
     description: book.description,
     publisher: book.publisher,
     genres: mapGenres(book.book_genres),
+    formats: book.book_formats ? book.book_formats.map(format => ({
+      typeName: format.book_types?.type_name || null,
+      contentUrl: format.content_url,
+    })) : [],
   };
 };
 
