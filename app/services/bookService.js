@@ -1,4 +1,5 @@
 import { prisma } from '#lib/prisma.js';
+import { generatePresignedUrl } from '#config/storageConfig.js';
 
 // Function to get all books with pagination
 const getAllBooks = async (page = 0, size = 12) => {
@@ -147,6 +148,7 @@ const getBookById = async (bookId) => {
       },
       book_formats: {
         select: {
+          format_id: true,
           book_types: {
             select: {
               type_name: true,
@@ -524,6 +526,76 @@ const getBookFormats = async (bookId) => {
   }));
 };
 
+/**
+ * Generate a presigned read URL for a book.
+ * Tries the requested format first, then falls back to any available format.
+ */
+const getBookReadUrl = async (bookId, formatType = 'EPUB') => {
+  const where = {
+    book_id: BigInt(bookId),
+    books: { is_deleted: false },
+  };
+
+  // Try the requested format first
+  let bookFormat = await prisma.book_formats.findFirst({
+    where: {
+      ...where,
+      book_types: { type_name: { equals: formatType, mode: 'insensitive' } },
+    },
+    include: { book_types: true },
+  });
+
+  // Fallback to any available format
+  if (!bookFormat) {
+    bookFormat = await prisma.book_formats.findFirst({
+      where,
+      include: { book_types: true },
+    });
+  }
+
+  if (!bookFormat) return null;
+
+  const url = await generatePresignedUrl(bookFormat.content_url);
+  return {
+    url,
+    typeName: bookFormat.book_types.type_name,
+    expiresIn: 3600,
+  };
+};
+
+/**
+ * Generate a presigned download URL for a specific book format.
+ * Sets Content-Disposition to trigger a browser download.
+ */
+const getBookDownloadUrl = async (bookId, formatId) => {
+  const bookFormat = await prisma.book_formats.findFirst({
+    where: {
+      format_id: BigInt(formatId),
+      book_id: BigInt(bookId),
+      books: { is_deleted: false },
+    },
+    include: {
+      book_types: true,
+      books: { select: { title: true } },
+    },
+  });
+
+  if (!bookFormat) return null;
+
+  const extension = bookFormat.book_types.type_name.toLowerCase();
+  const sanitizedTitle = (bookFormat.books.title || 'book')
+    .replace(/[^\w\d\s-]/g, '')
+    .replace(/\s+/g, '_')
+    .trim() || 'book';
+  const fileName = `${sanitizedTitle}.${extension}`;
+
+  const url = await generatePresignedUrl(bookFormat.content_url, {
+    responseContentDisposition: `attachment; filename="${fileName}"`,
+  });
+
+  return { url, fileName, typeName: bookFormat.book_types.type_name, expiresIn: 3600 };
+};
+
 export {
   getBooksByGenre,
   getBookById,
@@ -537,6 +609,8 @@ export {
   deleteBook,
   deleteBooksBulk,
   getBookFormats,
+  getBookReadUrl,
+  getBookDownloadUrl,
 };
 
 export const bookService = {
@@ -552,4 +626,6 @@ export const bookService = {
   deleteBook,
   deleteBooksBulk,
   getBookFormats,
+  getBookReadUrl,
+  getBookDownloadUrl,
 };

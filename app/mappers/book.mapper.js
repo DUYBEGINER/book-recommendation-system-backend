@@ -1,5 +1,4 @@
-
-
+import "dotenv/config";
 /**
  * Extract and map authors from book_authors relation
  */
@@ -58,8 +57,8 @@ const toBookDetailItem = (book) => {
     publisher: book.publisher,
     genres: mapGenres(book.book_genres),
     formats: book.book_formats ? book.book_formats.map(format => ({
+      formatId: format.format_id?.toString() || null,
       typeName: format.book_types?.type_name || null,
-      contentUrl: format.content_url,
     })) : [],
   };
 };
@@ -121,9 +120,9 @@ export const toBookDetailResponse = (books) => {
 
 export const toBookSearchResponse =  (books) => {
   if (!books) return null;
-  if (!Array.isArray(books)) return toBookDetailItem(books);
+  if (!Array.isArray(books)) return toBookSearchItem(books);
 
-  return books.map(toBookDetailItem).filter(Boolean);
+  return books.map(toBookSearchItem).filter(Boolean);
 }; 
 
 // Export helper functions for use by other mappers

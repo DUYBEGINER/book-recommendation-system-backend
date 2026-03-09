@@ -5,7 +5,9 @@ import {
     getMostReadBooks,
     getAllBooks,
     getBookPreview,
-    getBookByKeyword
+    getBookByKeyword,
+    getBookReadUrl,
+    downloadBook,
 } from '#controllers/Users/BookController.js';
 
 const router = express.Router();
@@ -17,6 +19,8 @@ router.get('/books/genre/:genreId', getBooksByGenre);
 router.get('/books', getAllBooks);
 
 // Dynamic routes with :bookId parameter
+router.get('/books/:bookId/read-url', getBookReadUrl);
+router.get('/books/:bookId/download/:formatId', downloadBook);
 router.get('/books/:bookId/preview', getBookPreview);
 router.get('/books/:bookId', getBookById);
 

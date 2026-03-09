@@ -6,7 +6,9 @@ import {
     getAllBooks as getAllBooksService,
     getBookById as getBookByIdService,
     getBookPreview as getBookPreviewService,
-    getBookByKeyword as getBookByKeywordService
+    getBookByKeyword as getBookByKeywordService,
+    getBookReadUrl as getBookReadUrlService,
+    getBookDownloadUrl as getBookDownloadUrlService,
 } from "#services/bookService.js";
 
 // Controller to get all books with pagination
@@ -147,4 +149,47 @@ const getBookByKeyword = async (req, res) => {
 
 }
 
-export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks, getBookPreview, getBookByKeyword };
+// Controller to get a presigned read URL for a book
+const getBookReadUrl = async (req, res) => {
+    const { bookId } = req.params;
+    const { format = 'EPUB' } = req.query;
+
+    if (!bookId) { return ApiResponse.error(res, 'Book ID is required', 400); }
+
+    try {
+        const result = await getBookReadUrlService(bookId, format);
+
+        if (!result) {
+            return ApiResponse.error(res, 'Book format not found', 404);
+        }
+
+        return ApiResponse.success(res, result, 'Read URL generated successfully');
+    } catch (err) {
+        logger.error(`Error generating read URL for book ${bookId}: ${err.message}`);
+        return ApiResponse.error(res, 'Failed to generate read URL', 500);
+    }
+}
+
+// Controller to get a presigned download URL for a book format
+const downloadBook = async (req, res) => {
+    const { bookId, formatId } = req.params;
+
+    if (!bookId || !formatId) {
+        return ApiResponse.error(res, 'Book ID and format ID are required', 400);
+    }
+
+    try {
+        const result = await getBookDownloadUrlService(bookId, formatId);
+
+        if (!result) {
+            return ApiResponse.error(res, 'Book format not found', 404);
+        }
+
+        return ApiResponse.success(res, result, 'Download URL generated successfully');
+    } catch (err) {
+        logger.error(`Error generating download URL for book ${bookId}: ${err.message}`);
+        return ApiResponse.error(res, 'Failed to generate download URL', 500);
+    }
+}
+
+export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks, getBookPreview, getBookByKeyword, getBookReadUrl, downloadBook };
