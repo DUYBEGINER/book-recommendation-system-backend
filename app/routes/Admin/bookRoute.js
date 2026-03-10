@@ -39,7 +39,7 @@ router.get('/books/:bookId/formats', getBookFormatsHandler);
 // ============================================
 // ADMIN GENRE MANAGEMENT
 // ============================================
-router.get('/books/genres', getGenresWithPagination);
+router.get('/admin/books/genres', getGenresWithPagination);
 router.post('/admin/genres/create', authenticateToken, createGenre);
 router.put('/admin/genres/update/:genreId', authenticateToken, updateGenre);
 router.delete('/admin/genres/delete/:genreId', authenticateToken, deleteGenre);

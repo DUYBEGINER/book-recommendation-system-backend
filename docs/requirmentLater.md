@@ -3,3 +3,4 @@ Hiện tại chỉ cho đăng nhập dùng email đã đăng kí chưa sử dụ
 Đăng kí xong thì front end bắt đăng nhập nhưng trong redis đã lưu session. (cần fix)
 Tích hợp tính năng active tài khoản qua gmail (xác thực gmail); (sửa code ở authCOntroller, service để lấy hoặc tạo tài khoản với trường is_activate).
 Khi cập nhật thông tin người dùng thì thông tin trong accesstoken không đổi, nên giao diện không cập nhật đúng, (fix sau).
+Thêm kiểm tra auth khi gọi api.
