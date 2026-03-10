@@ -126,75 +126,57 @@ const getBooksByGenre = async (genreId, page = 0, size = 10, sort = 'newest') =>
 const getBookById = async (bookId, userId = null) => {
   const bookIdBig = BigInt(bookId);
 
-  const book = await prisma.books.findUnique({
-    where: {
-      book_id: bookIdBig,
-      is_deleted: false,
-    },
-    select: {
-      book_id: true,
-      title: true,
-      cover_image_url: true,
-      description: true,
-      publisher: true,
-      publication_year: true,
-      book_authors: {
-        select: {
-          authors: true
-        },
+  const [book, ratingStats, favorite] = await Promise.all([
+    prisma.books.findUnique({
+      where: {
+        book_id: bookIdBig,
+        is_deleted: false,
       },
-      book_genres: {
-        select: {
-          genres: true,
+      select: {
+        book_id: true,
+        title: true,
+        cover_image_url: true,
+        description: true,
+        publisher: true,
+        publication_year: true,
+        book_authors: {
+          select: { authors: true },
         },
-      },
-      book_formats: {
-        select: {
-          format_id: true,
-          book_types: {
-            select: {
-              type_name: true,
-            },
-          },
-          content_url: true,
+        book_genres: {
+          select: { genres: true },
         },
-      },
-      ratings: {
-        orderBy: { created_at: 'desc' },
-        select: {
-          rating_id: true,
-          rating_value: true,
-          comment: true,
-          created_at: true,
-          users: {
-            select: {
-              user_id: true,
-              username: true,
-              full_name: true,
-              avatar_url: true,
-            },
+        book_formats: {
+          select: {
+            format_id: true,
+            book_types: { select: { type_name: true } },
+            content_url: true,
           },
         },
       },
-    },
-  });
+    }),
+    // Aggregate rating stats from the full dataset
+    prisma.ratings.aggregate({
+      where: { book_id: bookIdBig },
+      _avg: { rating_value: true },
+      _count: { rating_id: true },
+    }),
+    // Check if user has favorited this book
+    userId
+      ? prisma.favorites.findFirst({
+          where: { user_id: BigInt(userId), book_id: bookIdBig },
+          select: { favorite_id: true },
+        })
+      : Promise.resolve(null),
+  ]);
 
   if (!book) return null;
 
-  // Compute isFav if userId is provided
-  let isFav = false;
-  if (userId) {
-    const favorite = await prisma.favorites.findFirst({
-      where: {
-        user_id: BigInt(userId),
-        book_id: bookIdBig,
-      },
-      select: { favorite_id: true },
-    });
-    isFav = !!favorite;
-  }
-
-  return { ...book, isFav };
+  return {
+    ...book,
+    isFav: !!favorite,
+    averageRating: ratingStats._avg.rating_value ?? 0,
+    totalRatings: ratingStats._count.rating_id ?? 0,
+  };
 }
 
 // Function to get book preview (for hover card)

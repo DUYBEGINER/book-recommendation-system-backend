@@ -116,10 +116,46 @@ export const getUserRating = async (userId, bookId) => {
   });
 };
 
+/**
+ * Get paginated ratings for a book.
+ * Returns raw Prisma entities + pagination metadata.
+ */
+export const getBookRatingsPaginated = async (bookId, page = 0, size = 5) => {
+  const where = { book_id: BigInt(bookId) };
+  const skip = page * size;
+
+  const [ratings, total] = await Promise.all([
+    prisma.ratings.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+      skip,
+      take: size,
+      include: {
+        users: {
+          select: {
+            user_id: true,
+            username: true,
+            full_name: true,
+            avatar_url: true,
+          },
+        },
+      },
+    }),
+    prisma.ratings.count({ where }),
+  ]);
+
+  return {
+    ratings,
+    total,
+    hasMore: skip + ratings.length < total,
+  };
+};
+
 export const ratingService = {
   getBookRatings,
   createOrUpdateRating,
   deleteRating,
   getAverageRating,
   getUserRating,
+  getBookRatingsPaginated,
 };

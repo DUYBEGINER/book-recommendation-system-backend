@@ -1,5 +1,6 @@
 import { ApiResponse, logger } from "#utils/index.js";
 import { toBookListResponse, toBookDetailResponse, toBookPreviewResponse, toBookSearchResponse } from "../../mappers/book.mapper.js";
+import { toRatingListResponse } from "../../mappers/rating.mapper.js";
 import { 
     getBooksByGenre as getBooksByGenreService,
     getMostReadBooks as getMostReadBooksService,
@@ -10,6 +11,7 @@ import {
     getBookReadUrl as getBookReadUrlService,
     getBookDownloadUrl as getBookDownloadUrlService,
 } from "#services/bookService.js";
+import { getBookRatingsPaginated as getBookRatingsPaginatedService } from "#services/ratingService.js";
 
 // Controller to get all books with pagination
 const getAllBooks = async (req, res) => {
@@ -193,4 +195,27 @@ const downloadBook = async (req, res) => {
     }
 }
 
-export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks, getBookPreview, getBookByKeyword, getBookReadUrl, downloadBook };
+// Controller to get paginated ratings for a book
+const getBookRatingsPaginated = async (req, res) => {
+    const { bookId } = req.params;
+    if (!bookId) return ApiResponse.error(res, 'Book ID is required', 400);
+
+    const page = Math.max(0, parseInt(req.query.page) || 0);
+    const size = Math.min(20, Math.max(1, parseInt(req.query.size) || 5));
+
+    try {
+        const result = await getBookRatingsPaginatedService(bookId, page, size);
+        return ApiResponse.success(res, {
+            ratings: toRatingListResponse(result.ratings),
+            total: result.total,
+            hasMore: result.hasMore,
+            page,
+            size,
+        }, 'Ratings fetched successfully');
+    } catch (err) {
+        logger.error(`Error fetching ratings for book ${bookId}: ${err.message}`);
+        return ApiResponse.error(res, 'Failed to fetch ratings', 500);
+    }
+}
+
+export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks, getBookPreview, getBookByKeyword, getBookReadUrl, downloadBook, getBookRatingsPaginated };
