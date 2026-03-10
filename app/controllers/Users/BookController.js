@@ -34,12 +34,13 @@ const getBookById = async (req, res) => {
 
     // Extract bookId from request parameters
     const { bookId } = req.params;
+    const userId = req.query.userId; // Optional userId for personalized details
 
     // Validate bookId
     if (!bookId) { return ApiResponse.error(res, 'Book ID is required', 400); }
 
     try {
-        const book = await getBookByIdService(bookId);
+        const book = await getBookByIdService(bookId, userId);
         
         if (!book) {
             return ApiResponse.error(res, 'Book not found', 404);

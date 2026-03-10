@@ -123,10 +123,12 @@ const getBooksByGenre = async (genreId, page = 0, size = 10, sort = 'newest') =>
 }
 
 //Function to get books by book_id
-const getBookById = async (bookId) => {
+const getBookById = async (bookId, userId = null) => {
+  const bookIdBig = BigInt(bookId);
+
   const book = await prisma.books.findUnique({
     where: {
-      book_id: BigInt(bookId),
+      book_id: bookIdBig,
       is_deleted: false,
     },
     select: {
@@ -157,9 +159,42 @@ const getBookById = async (bookId) => {
           content_url: true,
         },
       },
+      ratings: {
+        orderBy: { created_at: 'desc' },
+        select: {
+          rating_id: true,
+          rating_value: true,
+          comment: true,
+          created_at: true,
+          users: {
+            select: {
+              user_id: true,
+              username: true,
+              full_name: true,
+              avatar_url: true,
+            },
+          },
+        },
+      },
     },
   });
-  return book;
+
+  if (!book) return null;
+
+  // Compute isFav if userId is provided
+  let isFav = false;
+  if (userId) {
+    const favorite = await prisma.favorites.findFirst({
+      where: {
+        user_id: BigInt(userId),
+        book_id: bookIdBig,
+      },
+      select: { favorite_id: true },
+    });
+    isFav = !!favorite;
+  }
+
+  return { ...book, isFav };
 }
 
 // Function to get book preview (for hover card)

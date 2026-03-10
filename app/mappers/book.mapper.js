@@ -46,11 +46,32 @@ const toBookListItem = (book) => {
 };
 
 /**
+ * Map ratings from Prisma entities to response format
+ */
+const mapRatings = (ratings) => {
+  if (!Array.isArray(ratings)) return [];
+  return ratings.map(r => ({
+    ratingId: r.rating_id,
+    value: r.rating_value,
+    comment: r.comment ?? null,
+    createdAt: r.created_at,
+    userName: r.users?.full_name || r.users?.username || 'Ẩn danh',
+    avatarUrl: r.users?.avatar_url ?? null,
+  }));
+};
+
+/**
  * Transform single book to detail response format
  */
 const toBookDetailItem = (book) => {
   if (!book) return null;
-  
+
+  const ratings = mapRatings(book.ratings);
+  const totalReviews = ratings.length;
+  const averageRating = totalReviews > 0
+    ? ratings.reduce((sum, r) => sum + r.value, 0) / totalReviews
+    : 0;
+
   return {
     ...mapBaseBookFields(book),
     description: book.description,
@@ -60,6 +81,10 @@ const toBookDetailItem = (book) => {
       formatId: format.format_id?.toString() || null,
       typeName: format.book_types?.type_name || null,
     })) : [],
+    isFav: book.isFav ?? false,
+    averageRating: Math.round(averageRating * 10) / 10,
+    totalReviews,
+    ratings,
   };
 };
 
