@@ -1,5 +1,6 @@
 import express from 'express';
 import { authenticateToken } from '#middlewares/authenticateToken.js';
+import { uploadBookFiles } from '#middlewares/upload.middleware.js';
 import {
   getBooks,
   createBookHandler,
@@ -28,8 +29,8 @@ router.get('/admin/dashboard', authenticateToken, getDashboard);
 // ADMIN BOOK MANAGEMENT
 // ============================================
 router.get('/admin/books', authenticateToken, getBooks);
-router.post('/admin/books/create', authenticateToken, createBookHandler);
-router.put('/admin/books/update/:bookId', authenticateToken, updateBookHandler);
+router.post('/admin/books/create', authenticateToken, uploadBookFiles, createBookHandler);
+router.put('/admin/books/update/:bookId', authenticateToken, uploadBookFiles, updateBookHandler);
 router.delete('/admin/books/delete/:bookId', authenticateToken, deleteBookHandler);
 router.delete('/admin/books', authenticateToken, deleteBooksBulkHandler);
 

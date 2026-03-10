@@ -11,6 +11,8 @@ import {
   deleteBooksBulk,
   getBookFormats,
 } from "#services/bookService.js";
+import { uploadBookCover } from "#config/R2UploadConfig.js";
+import { uploadToMinio } from "#config/storageConfig.js";
 
 /**
  * GET /admin/books - Get books with pagination, filters, sorting
@@ -35,29 +37,76 @@ export const getBooks = async (req, res) => {
 };
 
 /**
- * POST /admin/books/create - Create a new book
+ * POST /admin/books/create - Create a new book (multipart/form-data)
+ *
+ * Expected text fields: title, description, publicationYear, publisher,
+ *   authorNames (repeated), genreIds (repeated)
+ * Expected files: cover (image), pdfFile, epubFile
  */
 export const createBookHandler = async (req, res) => {
   try {
-    const { title, description, coverImageUrl, publicationYear, publisher, authorIds, genreIds, formats } = req.body;
-    
+    const { title, description, publicationYear, publisher } = req.body;
+
     if (!title) {
       return ApiResponse.error(res, 'Title is required', 400);
     }
-    
+
+    // Parse repeated form fields — multer may deliver a string or an array
+    const authorNames = Array.isArray(req.body.authorNames)
+      ? req.body.authorNames
+      : req.body.authorNames ? [req.body.authorNames] : [];
+    const genreIds = Array.isArray(req.body.genreIds)
+      ? req.body.genreIds
+      : req.body.genreIds ? [req.body.genreIds] : [];
+
+    // ---- Upload cover image to R2 ----
+    let coverImageUrl = '';
+    const coverFile = req.files?.cover?.[0];
+    if (coverFile) {
+      const result = await uploadBookCover(coverFile.buffer, coverFile.originalname);
+      if (!result.success) {
+        return ApiResponse.error(res, 'Failed to upload cover image', 500);
+      }
+      coverImageUrl = result.url;
+    }
+
+    // ---- Upload book files to MinIO, collect format entries ----
+    const formats = [];
+
+    const pdfFile = req.files?.pdfFile?.[0];
+    if (pdfFile) {
+      const { key } = await uploadToMinio(pdfFile.buffer, pdfFile.originalname);
+      formats.push({
+        typeName: 'PDF',
+        contentUrl: key,
+        fileSizeKb: Math.round(pdfFile.size / 1024),
+      });
+    }
+
+    const epubFile = req.files?.epubFile?.[0];
+    if (epubFile) {
+      const { key } = await uploadToMinio(epubFile.buffer, epubFile.originalname);
+      formats.push({
+        typeName: 'EPUB',
+        contentUrl: key,
+        fileSizeKb: Math.round(epubFile.size / 1024),
+      });
+    }
+
+    // ---- Persist book + relations ----
     const book = await createBook({
       title,
       description,
       coverImageUrl,
       publicationYear,
       publisher,
-      authorIds: authorIds || [],
-      genreIds: genreIds || [],
-      formats: formats || [],
+      authorNames,
+      genreIds,
+      formats,
     });
-    
+
     logger.info(`Book created: ${book.id} by admin ${req.user.userId}`);
-    
+    console.log('Created book:', book)  ;
     return ApiResponse.created(res, book, 'Book created successfully');
   } catch (error) {
     logger.error('Create book error:', error);

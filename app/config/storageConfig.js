@@ -1,6 +1,8 @@
 import "dotenv/config";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import path from "node:path";
+import { v4 as uuidv4 } from "uuid";
 
 /**
  * MinIO (S3-compatible) Storage Configuration
@@ -75,4 +77,33 @@ async function generatePresignedUrl(key, options = {}) {
   return getSignedUrl(minioClient, command, { expiresIn });
 }
 
-export { minioClient, MINIO_BUCKET, normalizeKey, generatePresignedUrl };
+/**
+ * Upload a book file (PDF / EPUB) to MinIO.
+ *
+ * @param {Buffer} buffer      – file content
+ * @param {string} filename    – original filename (used for extension)
+ * @param {string} folder      – destination folder, e.g. "books"
+ * @returns {Promise<{ key: string }>} the object key stored in MinIO
+ */
+async function uploadToMinio(buffer, filename, folder = "books") {
+  const ext = path.extname(filename).toLowerCase() || "";
+  const key = `${folder}/${uuidv4()}${ext}`;
+
+  const contentTypes = {
+    ".pdf": "application/pdf",
+    ".epub": "application/epub+zip",
+  };
+
+  await minioClient.send(
+    new PutObjectCommand({
+      Bucket: MINIO_BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: contentTypes[ext] || "application/octet-stream",
+    }),
+  );
+
+  return { key };
+}
+
+export { minioClient, MINIO_BUCKET, normalizeKey, generatePresignedUrl, uploadToMinio };

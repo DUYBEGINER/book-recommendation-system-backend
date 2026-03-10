@@ -368,10 +368,21 @@ const getAdminBooks = async (page = 0, size = 10, keyword = '', genreId = null, 
 };
 
 /**
- * Create a new book with authors and genres
+ * Create a new book with authors and genres.
+ * Supports both authorIds (existing) and authorNames (find-or-create).
  */
 const createBook = async (bookData) => {
-  const { title, description, coverImageUrl, publicationYear, publisher, authorIds, genreIds, formats } = bookData;
+  const {
+    title,
+    description,
+    coverImageUrl,
+    publicationYear,
+    publisher,
+    authorIds = [],
+    authorNames = [],
+    genreIds = [],
+    formats = [],
+  } = bookData;
 
   const book = await prisma.books.create({
     data: {
@@ -383,12 +394,32 @@ const createBook = async (bookData) => {
     },
   });
 
+  // Resolve author IDs: use provided IDs + find-or-create by name
+  const resolvedAuthorIds = [...authorIds.map((id) => BigInt(id))];
+
+  for (const name of authorNames) {
+    const trimmed = name.trim();
+    if (!trimmed) continue;
+
+    let author = await prisma.authors.findFirst({
+      where: { author_name: trimmed },
+    });
+
+    if (!author) {
+      author = await prisma.authors.create({
+        data: { author_name: trimmed },
+      });
+    }
+
+    resolvedAuthorIds.push(author.author_id);
+  }
+
   // Add author relationships
-  if (authorIds && authorIds.length > 0) {
+  if (resolvedAuthorIds.length > 0) {
     await prisma.book_authors.createMany({
-      data: authorIds.map(authorId => ({
+      data: resolvedAuthorIds.map((authorId) => ({
         book_id: book.book_id,
-        author_id: BigInt(authorId),
+        author_id: authorId,
       })),
     });
   }

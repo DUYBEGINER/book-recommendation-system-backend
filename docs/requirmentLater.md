@@ -4,3 +4,4 @@ Hiện tại chỉ cho đăng nhập dùng email đã đăng kí chưa sử dụ
 Tích hợp tính năng active tài khoản qua gmail (xác thực gmail); (sửa code ở authCOntroller, service để lấy hoặc tạo tài khoản với trường is_activate).
 Khi cập nhật thông tin người dùng thì thông tin trong accesstoken không đổi, nên giao diện không cập nhật đúng, (fix sau).
 Thêm kiểm tra auth khi gọi api.
+Phần cập nhật thông tin sách chưa cập nhật được ảnh
