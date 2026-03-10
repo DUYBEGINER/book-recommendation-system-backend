@@ -63,6 +63,7 @@ router.get("/auth/sessions", authenticateToken, getSessions);
 
 // Get current user profile
 router.get("/auth/profile", authenticateToken, (req, res) => {
+  res.set('Cache-Control', 'no-store'); // Disable caching
   return res.status(200).json({ 
     success: true,
     message: "Profile data", 

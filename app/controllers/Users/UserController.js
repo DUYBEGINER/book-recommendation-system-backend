@@ -42,7 +42,7 @@ export const getUserProfile = async (req, res) => {
     
     // 2. Transform via mapper
     const response = toUserResponse(user);
-    
+
     return ApiResponse.success(res, response, 'User profile fetched successfully');
   } catch (error) {
     logger.error('Get user profile error:', error);

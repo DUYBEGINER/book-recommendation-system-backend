@@ -170,7 +170,7 @@ export const createUser = async (userData) => {
       full_name: userData.fullName || null,
       avatar_url: userData.avatarUrl || null,
       role_id: role.role_id,
-      is_activate: userData.isActivate ?? false,
+      is_activate: userData.isActivate ?? false, // Default to false if not provided
       is_ban: false,
     },
     select: USER_SELECT_FIELDS,

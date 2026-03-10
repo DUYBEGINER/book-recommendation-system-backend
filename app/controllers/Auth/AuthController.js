@@ -290,7 +290,7 @@ export const registerWithEmailAndPassword = async (req, res) => {
       email,
       password: hashedPassword,
       fullName,
-      role: 'user',
+      role: 'USER',
       isActivate: false, // Requires email verification
     });
     
