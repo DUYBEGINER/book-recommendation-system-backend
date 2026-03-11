@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import path from "node:path";
 import { v4 as uuidv4 } from "uuid";
@@ -106,4 +106,13 @@ async function uploadToMinio(buffer, filename, folder = "books") {
   return { key };
 }
 
-export { minioClient, MINIO_BUCKET, normalizeKey, generatePresignedUrl, uploadToMinio };
+async function deleteFromMinio(key) {
+  await minioClient.send(
+    new DeleteObjectCommand({
+      Bucket: MINIO_BUCKET,
+      Key: normalizeKey(key),
+    })
+  );
+}
+
+export { minioClient, MINIO_BUCKET, normalizeKey, generatePresignedUrl, uploadToMinio, deleteFromMinio };

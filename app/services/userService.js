@@ -35,7 +35,7 @@ const USER_SELECT_FIELDS = {
  */
 export const getUserById = async (userId) => {
   return prisma.users.findUnique({
-    where: { user_id: BigInt(userId) },
+    where: { user_id: BigInt(userId) , is_ban: false},
     select: USER_SELECT_FIELDS,
   });
 };

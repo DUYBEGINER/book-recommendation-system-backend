@@ -555,6 +555,80 @@ const deleteBooksBulk = async (bookIds) => {
 };
 
 /**
+ * Get soft-deleted books for admin trash view, with pagination, keyword search, and sorting.
+ * updated_at reflects when the book was soft-deleted.
+ */
+const getDeletedBooks = async (page = 0, size = 10, keyword = '', sort = '') => {
+  const skip = page * size;
+
+  const where = { is_deleted: true };
+
+  if (keyword) {
+    where.OR = [
+      { title: { contains: keyword, mode: 'insensitive' } },
+      { description: { contains: keyword, mode: 'insensitive' } },
+    ];
+  }
+
+  let orderBy = { updated_at: 'desc' };
+  if (sort === 'oldest') orderBy = { updated_at: 'asc' };
+  else if (sort === 'title-asc') orderBy = { title: 'asc' };
+  else if (sort === 'title-desc') orderBy = { title: 'desc' };
+
+  const [books, total] = await Promise.all([
+    prisma.books.findMany({
+      where,
+      orderBy,
+      skip,
+      take: size,
+      include: {
+        book_genres: { include: { genres: true } },
+        book_authors: { include: { authors: true } },
+      },
+    }),
+    prisma.books.count({ where }),
+  ]);
+
+  const content = books.map(book => ({
+    id: book.book_id.toString(),
+    title: book.title,
+    coverImageUrl: book.cover_image_url,
+    publicationYear: book.publication_year,
+    publisher: book.publisher,
+    deletedAt: book.updated_at,
+    genres: book.book_genres.map(bg => ({
+      id: bg.genres.genre_id.toString(),
+      name: bg.genres.genre_name,
+    })),
+    authors: book.book_authors.map(ba => ({
+      id: ba.authors.author_id.toString(),
+      name: ba.authors.author_name,
+    })),
+  }));
+
+  return { content, number: page, size, totalElements: total, totalPages: Math.ceil(total / size) };
+};
+
+/**
+ * Permanently delete a book and all its related records from the database.
+ * Only call this on books that are already soft-deleted (is_deleted: true).
+ */
+const hardDeleteBook = async (bookId) => {
+  const id = BigInt(bookId);
+  await prisma.$transaction([
+    prisma.book_authors.deleteMany({ where: { book_id: id } }),
+    prisma.book_genres.deleteMany({ where: { book_id: id } }),
+    prisma.book_formats.deleteMany({ where: { book_id: id } }),
+    prisma.bookmarks.deleteMany({ where: { book_id: id } }),
+    prisma.favorites.deleteMany({ where: { book_id: id } }),
+    prisma.ratings.deleteMany({ where: { book_id: id } }),
+    prisma.reading_history.deleteMany({ where: { book_id: id } }),
+    prisma.books.delete({ where: { book_id: id } }),
+  ]);
+  return true;
+};
+
+/**
  * Get book formats (for reading)
  */
 const getBookFormats = async (bookId) => {
@@ -652,10 +726,12 @@ export {
   getBookPreview,
   getBookByKeyword,
   getAdminBooks,
+  getDeletedBooks,
   createBook,
   updateBook,
   deleteBook,
   deleteBooksBulk,
+  hardDeleteBook,
   getBookFormats,
   getBookReadUrl,
   getBookDownloadUrl,

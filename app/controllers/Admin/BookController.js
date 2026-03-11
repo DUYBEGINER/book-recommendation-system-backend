@@ -5,14 +5,16 @@
 import { ApiResponse, logger } from "#utils/index.js";
 import { 
   getAdminBooks, 
+  getDeletedBooks,
   createBook, 
   updateBook, 
   deleteBook, 
   deleteBooksBulk,
+  hardDeleteBook,
   getBookFormats,
 } from "#services/bookService.js";
 import { uploadBookCover } from "#config/R2UploadConfig.js";
-import { uploadToMinio } from "#config/storageConfig.js";
+import { uploadToMinio, deleteFromMinio } from "#config/storageConfig.js";
 
 /**
  * GET /admin/books - Get books with pagination, filters, sorting
@@ -194,5 +196,48 @@ export const getBookFormatsHandler = async (req, res) => {
   } catch (error) {
     logger.error('Get book formats error:', error);
     return ApiResponse.error(res, 'Failed to fetch book formats', 500);
+  }
+};
+
+/**
+ * GET /admin/books/deleted - Get soft-deleted books (trash)
+ */
+export const getDeletedBooksHandler = async (req, res) => {
+  try {
+    const { page = 0, size = 10, keyword = '', sort = '' } = req.query;
+
+    const books = await getDeletedBooks(parseInt(page), parseInt(size), keyword, sort);
+
+    return ApiResponse.success(res, books, 'Deleted books fetched successfully');
+  } catch (error) {
+    logger.error('Get deleted books error:', error);
+    return ApiResponse.error(res, 'Failed to fetch deleted books', 500);
+  }
+};
+
+/**
+ * DELETE /admin/books/hard-delete/:bookId - Permanently delete a book from the database
+ */
+export const hardDeleteBookHandler = async (req, res) => {
+  try {
+    const { bookId } = req.params;  
+
+    const formats = await getBookFormats(bookId);
+
+    // First delete associated files from MinIO
+    for (const format of formats) {
+      if (format.contentUrl) {
+        await deleteFromMinio(format.contentUrl);
+      }
+    }
+    logger.info(`✅ Deleted associated files for book ${bookId} from MinIO successfully.`);
+    await hardDeleteBook(bookId);
+
+    logger.info(`🟢 Book ${bookId} permanently deleted by admin ${req.user.userId}`);
+
+    return ApiResponse.success(res, null, 'Book permanently deleted successfully');
+  } catch (error) {
+    logger.error('❌ Hard delete book error:', error);
+    return ApiResponse.error(res, 'Failed to permanently delete book', 500);
   }
 };

@@ -8,6 +8,8 @@ import {
   deleteBookHandler,
   deleteBooksBulkHandler,
   getBookFormatsHandler,
+  getDeletedBooksHandler,
+  hardDeleteBookHandler,
 } from '#controllers/Admin/BookController.js';
 import { getDashboard } from '#controllers/Admin/DashboardController.js';
 import { 
@@ -28,9 +30,11 @@ router.get('/admin/dashboard', authenticateToken, getDashboard);
 // ============================================
 // ADMIN BOOK MANAGEMENT
 // ============================================
+router.get('/admin/books/deleted', authenticateToken, getDeletedBooksHandler);
 router.get('/admin/books', authenticateToken, getBooks);
 router.post('/admin/books/create', authenticateToken, uploadBookFiles, createBookHandler);
 router.put('/admin/books/update/:bookId', authenticateToken, uploadBookFiles, updateBookHandler);
+router.delete('/admin/books/hard-delete/:bookId', authenticateToken, hardDeleteBookHandler);
 router.delete('/admin/books/delete/:bookId', authenticateToken, deleteBookHandler);
 router.delete('/admin/books', authenticateToken, deleteBooksBulkHandler);
 
