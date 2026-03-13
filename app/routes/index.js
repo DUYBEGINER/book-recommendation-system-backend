@@ -9,7 +9,7 @@ import { AuthorRouter } from '#routes/Users/authorRoute.js';
 import { AuthRouter } from '#routes/authRoute.js';
 
 // ADMIN routes
-import { AdminRouter } from '#routes/Admin/bookRoute.js';
+import { AdminRouter } from '#routes/Admin/AdminRoute.js';
 
 // Health check endpoint
 router.get('/health', (req, res) => {

@@ -1,6 +1,11 @@
 import express from 'express';
 import { authenticateToken } from '#middlewares/authenticateToken.js';
 import { uploadBookFiles } from '#middlewares/upload.middleware.js';
+
+// CONTROLLERS
+// Dashboard
+import { getDashboard } from '#controllers/Admin/DashboardController.js';
+// Book management
 import {
   getBooks,
   createBookHandler,
@@ -11,14 +16,16 @@ import {
   getDeletedBooksHandler,
   hardDeleteBookHandler,
 } from '#controllers/Admin/BookController.js';
-import { getDashboard } from '#controllers/Admin/DashboardController.js';
+// Genre management
 import { 
   getGenresWithPagination, 
   createGenre, 
   updateGenre, 
   deleteGenre 
 } from '#controllers/Admin/GenreController.js';
+// User management
 import { getAllUsers } from '#controllers/Users/UserController.js';
+
 
 const router = express.Router();
 
