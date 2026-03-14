@@ -10,12 +10,13 @@ const ALLOWED_BOOK_TYPES = [
 ];
 
 const MAX_BOOK_SIZE = 25 * 1024 * 1024;   // 25 MB
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;   // 5 MB
 
 /**
  * File filter that validates MIME types per field name.
  */
-function bookFileFilter(_req, file, cb) {
-  if (file.fieldname === 'cover') {
+function allFileFilter(_req, file, cb) {
+  if (file.fieldname === 'cover' || file.fieldname === 'avatar') {
     if (!ALLOWED_IMAGE_TYPES.includes(file.mimetype)) {
       return cb(new Error('Cover image must be JPEG, PNG, WebP, or GIF'), false);
     }
@@ -35,7 +36,7 @@ function bookFileFilter(_req, file, cb) {
  */
 export const uploadBookFiles = multer({
   storage,
-  fileFilter: bookFileFilter,
+  fileFilter: allFileFilter,
   limits: {
     fileSize: MAX_BOOK_SIZE, // largest allowed per file
     files: 3,
@@ -44,4 +45,16 @@ export const uploadBookFiles = multer({
   { name: 'cover', maxCount: 1 },
   { name: 'pdfFile', maxCount: 1 },
   { name: 'epubFile', maxCount: 1 },
+]);
+
+
+export const uploadAvatarFile = multer({
+  storage,
+  fileFilter: allFileFilter,
+  limits: {
+    fileSize: MAX_IMAGE_SIZE,
+    files: 1,
+  },
+}).fields([
+  { name: 'avatar', maxCount: 1 },
 ]);

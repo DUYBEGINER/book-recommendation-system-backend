@@ -429,3 +429,25 @@ export const getSessions = async (req, res) => {
     return ApiResponse.error(res, 'Lỗi hệ thống', 500);
   }
 };
+
+/**
+ * GET /auth/profile - Get current user profile
+ * 
+ * 
+ */
+export const getAuthprofile = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return ApiResponse.error(res, 'Không có quyền truy cập', 401);
+    }
+    const user = await authService.getUserById(req.user.userId);
+    
+    const data = buildUserPayload(user);
+
+    return ApiResponse.success(res, data, 'Thông tin hồ sơ');
+  } catch (error) {
+    logger.error('Get profile error', { error: error.message });
+    return ApiResponse.error(res, 'Lỗi hệ thống', 500);
+  }
+};

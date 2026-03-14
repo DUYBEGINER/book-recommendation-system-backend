@@ -22,6 +22,10 @@ import { toHistoryPaginatedResponse, toHistoryActionResponse } from "#mappers/hi
 import { toRatingListResponse, toRatingCreateResponse, toAverageRatingResponse } from "#mappers/rating.mapper.js";
 import { toBookmarkListResponse, toBookmarkResponse } from "#mappers/bookmark.mapper.js";
 
+//Import storage config and service for avatar uploads
+import { BUCKET_NAME } from "#config/r2.config.js";
+import { uploadToR2, deleteFromR2 } from "#services/storage.service.js";
+
 // ============================================
 // PROFILE ENDPOINTS
 // ============================================
@@ -89,18 +93,36 @@ export const updateUserAvatar = async (req, res) => {
     const { userId } = req.params;
     
     // Verify user owns this profile
-    if (req.user.userId !== userId && req.user.role !== 'admin') {
+    if (!userId || req.user.userId !== userId) {
       return ApiResponse.error(res, 'Unauthorized', 403);
     }
     
     // TODO: Handle file upload to R2/S3
     // For now, expect avatarUrl in body
-    const { avatarUrl } = req.body;
+    let avatarUrl = '';
+    const avatarFile = req.files?.avatar?.[0];
     
-    if (!avatarUrl) {
-      return ApiResponse.error(res, 'Avatar URL is required', 400);
+    if (avatarFile) {
+      // Upload file to R2/S3 and get URL
+      const result = await uploadToR2(BUCKET_NAME, avatarFile.buffer, "avatars", avatarFile.originalname);
+      if (!result.success) {
+        return ApiResponse.error(res, 'Failed to upload avatar', 500);
+      }
+      avatarUrl = result.url;
+      console.log(`Uploaded avatar URL: ${avatarUrl}`);
     }
     
+    if (!avatarUrl) {
+      return ApiResponse.error(res, 'Cannot get avatar url from uploaded file', 400);
+    }
+    //1. Get current avatar URL to delete old one if exists
+    const currentAvatarUrl = await userService.getAvatarUrl(userId);
+    console.log(`Current avatar URL: ${currentAvatarUrl}`);
+    
+    //2. Delete old avatar from R2 if exists
+    if (currentAvatarUrl) {
+      await deleteFromR2(BUCKET_NAME, currentAvatarUrl);
+    }
     // 1. Call service to update
     const user = await userService.updateUserAvatar(userId, avatarUrl);
     

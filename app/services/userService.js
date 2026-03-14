@@ -62,6 +62,18 @@ export const updateUserProfile = async (userId, updateData) => {
 };
 
 /**
+ * Get user avatar URL
+ * Returns the avatar URL or null
+ */
+export const getAvatarUrl = async (userId) => {
+  const user = await prisma.users.findUnique({
+    where: { user_id: BigInt(userId) },
+    select: { avatar_url: true },
+  });
+  return user?.avatar_url || null;
+};
+
+/**
  * Update user avatar
  * Returns raw Prisma entity
  */
@@ -245,4 +257,5 @@ export const userService = {
   banUser,
   unbanUser,
   banUsersBulk,
+  getAvatarUrl,
 };

@@ -1,7 +1,3 @@
-/**
- * Admin Book Controller
- * Handles book CRUD operations for admin panel
- */
 import { ApiResponse, logger } from "#utils/index.js";
 import { 
   getAdminBooks, 
@@ -12,9 +8,11 @@ import {
   deleteBooksBulk,
   hardDeleteBook,
   getBookFormats,
+  getBookCoverUrl,
 } from "#services/bookService.js";
-import { uploadBookCover } from "#config/R2UploadConfig.js";
+import { BUCKET_NAME } from "#config/r2.config.js";
 import { uploadToMinio, deleteFromMinio } from "#config/storageConfig.js";
+import { uploadToR2, deleteFromR2 } from "#services/storage.service.js";
 
 /**
  * GET /admin/books - Get books with pagination, filters, sorting
@@ -49,8 +47,8 @@ export const createBookHandler = async (req, res) => {
   try {
     const { title, description, publicationYear, publisher } = req.body;
 
-    if (!title) {
-      return ApiResponse.error(res, 'Title is required', 400);
+    if (!title || !description) {
+      return ApiResponse.error(res, 'All text fields are required', 400);
     }
 
     // Parse repeated form fields — multer may deliver a string or an array
@@ -65,7 +63,7 @@ export const createBookHandler = async (req, res) => {
     let coverImageUrl = '';
     const coverFile = req.files?.cover?.[0];
     if (coverFile) {
-      const result = await uploadBookCover(coverFile.buffer, coverFile.originalname);
+      const result = await uploadToR2(BUCKET_NAME, coverFile.buffer, "covers", coverFile.originalname);
       if (!result.success) {
         return ApiResponse.error(res, 'Failed to upload cover image', 500);
       }
@@ -223,8 +221,14 @@ export const hardDeleteBookHandler = async (req, res) => {
     const { bookId } = req.params;  
 
     const formats = await getBookFormats(bookId);
+    const coverUrl = await getBookCoverUrl(bookId);
+    // First delete cover image if exists
+    if (coverUrl) {
+      await deleteFromR2(BUCKET_NAME, coverUrl);
+      logger.info(`✅ Deleted cover image for book ${bookId} from R2 successfully.`);
+    }
 
-    // First delete associated files from MinIO
+    // Second delete associated files from MinIO
     for (const format of formats) {
       if (format.contentUrl) {
         await deleteFromMinio(format.contentUrl);

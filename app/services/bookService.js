@@ -628,6 +628,14 @@ const hardDeleteBook = async (bookId) => {
   return true;
 };
 
+const getBookCoverUrl = async (bookId) => {
+  const book = await prisma.books.findUnique({
+    where: { book_id: BigInt(bookId) },
+  });
+  return book?.cover_image_url || null;
+};
+
+
 /**
  * Get book formats (for reading)
  */
@@ -735,6 +743,7 @@ export {
   getBookFormats,
   getBookReadUrl,
   getBookDownloadUrl,
+  getBookCoverUrl,
 };
 
 export const bookService = {
@@ -752,4 +761,5 @@ export const bookService = {
   getBookFormats,
   getBookReadUrl,
   getBookDownloadUrl,
+  getBookCoverUrl,
 };

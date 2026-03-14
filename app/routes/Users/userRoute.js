@@ -23,6 +23,8 @@ import {
   banUsersBulk,
 } from '#controllers/Users/UserController.js';
 
+import { uploadAvatarFile } from '#middlewares/upload.middleware.js';
+
 const router = express.Router();
 
 // ============================================
@@ -42,7 +44,7 @@ router.get('/users/:userId/books/:bookId/average-rating', getAverageRating);
 // Profile routes
 router.get('/users/:userId', authenticateToken, getUserProfile);
 router.put('/users/:userId/update', authenticateToken, updateUserProfile);
-router.patch('/users/:userId/avatar', authenticateToken, updateUserAvatar);
+router.patch('/users/:userId/avatar', authenticateToken, uploadAvatarFile, updateUserAvatar);
 router.patch('/users/:userId/change-password', authenticateToken, changeUserPassword);
 
 // Favorites routes

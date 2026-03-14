@@ -7,7 +7,8 @@ import {
   registerWithEmailAndPassword,
   logout,
   logoutAll,
-  getSessions
+  getSessions,
+  getAuthprofile
 } from '../controllers/Auth/AuthController.js';
 import { refreshTokenHandler } from '../controllers/Auth/TokenController.js';
 
@@ -62,19 +63,6 @@ router.post("/auth/logout-all", authenticateToken, logoutAll);
 router.get("/auth/sessions", authenticateToken, getSessions);
 
 // Get current user profile
-router.get("/auth/profile", authenticateToken, (req, res) => {
-  res.set('Cache-Control', 'no-store'); // Disable caching
-  return res.status(200).json({ 
-    success: true,
-    message: "Profile data", 
-    data: {
-      userId: req.user.userId,
-      email: req.user.email,
-      fullName: req.user.fullName,
-      role: req.user.role,
-      avatarUrl: req.user.avatarUrl || null,
-    }
-  });
-});
+router.get("/auth/profile", authenticateToken, getAuthprofile);
 
 export { router as AuthRouter };
