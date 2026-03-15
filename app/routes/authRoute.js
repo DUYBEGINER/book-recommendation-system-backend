@@ -2,8 +2,8 @@ import express from 'express';
 
 // CONTROLLERS
 import {
-  googleLogin, 
-  loginWithEmailAndPassword, 
+  googleLogin,
+  loginWithEmailAndPassword,
   registerWithEmailAndPassword,
   logout,
   logoutAll,
@@ -11,16 +11,19 @@ import {
   getAuthprofile
 } from '../controllers/Auth/AuthController.js';
 import { refreshTokenHandler } from '../controllers/Auth/TokenController.js';
+import { forgotPassword, resetPasswordHandler } from '../controllers/Auth/PasswordResetController.js';
 
 // MIDDLEWARES
 import { authenticateToken } from '#middlewares/authenticateToken.js';
 import { validate } from '#middlewares/validation.middleware.js';
-import { loginRateLimit, registerRateLimit } from '#middlewares/rateLimit.middleware.js';
+import { loginRateLimit, registerRateLimit, forgotPasswordRateLimit } from '#middlewares/rateLimit.middleware.js';
 
 // VALIDATORS
-import { 
-  loginValidationSchema, 
-  registerValidationSchema 
+import {
+  loginValidationSchema,
+  registerValidationSchema,
+  forgotPasswordValidationSchema,
+  resetPasswordValidationSchema
 } from '#validators/auth.validator.js';
 
 const router = express.Router();
@@ -51,6 +54,19 @@ router.post("/auth/refresh", refreshTokenHandler);
 
 // Logout current device (public - clears cookie even if token invalid)
 router.post("/auth/logout", logout);
+
+// Forgot password (rate limited + validated)
+router.post("/auth/forgot-password",
+  forgotPasswordRateLimit,
+  validate(forgotPasswordValidationSchema),
+  forgotPassword
+);
+
+// Reset password (validated)
+router.post("/auth/reset-password",
+  validate(resetPasswordValidationSchema),
+  resetPasswordHandler
+);
 
 // ============================================
 // PROTECTED ROUTES (authentication required)

@@ -64,6 +64,29 @@ export const registerRateLimit = rateLimit({
 });
 
 /**
+ * Rate limiting for forgot-password requests
+ */
+export const forgotPasswordRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 3, // Maximum 3 requests per 15 minutes per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const ip = ipKeyGenerator(req);
+    return `forgot_${ip}`;
+  },
+  handler: (req, res) => {
+    logger.warn('Forgot password rate limit exceeded', {
+      ip: req.ip,
+      email: req.body?.email,
+      userAgent: req.get('User-Agent')
+    });
+
+    return ApiResponse.error(res, 'Quá nhiều yêu cầu. Vui lòng thử lại sau 15 phút.', 429);
+  }
+});
+
+/**
  * General rate limiting for API
  */
 export const apiRateLimit = rateLimit({
