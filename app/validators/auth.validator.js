@@ -65,15 +65,38 @@ export const registerValidationSchema = Joi.object({
     
   username: Joi.string()
     .trim()
+    .min(5)
+    .max(50)
+    .required()
+    .messages({
+      'string.empty': 'Username là bắt buộc',
+      'string.min': 'Username phải có ít nhất 5 ký tự',
+      'string.max': 'Username không được quá 50 ký tự',
+      'any.required': 'Username là bắt buộc'
+    }),
+
+    fullName: Joi.string()
+    .trim()
     .min(2)
     .max(100)
     .required()
     .messages({
-      'string.empty': 'Họ tên là bắt buộc',
-      'string.min': 'Họ tên phải có ít nhất 2 ký tự',
-      'string.max': 'Họ tên không được quá 100 ký tự',
-      'any.required': 'Họ tên là bắt buộc'
-    })
+      'string.empty': 'Họ và tên là bắt buộc',
+      'string.min': 'Họ và tên phải có ít nhất 2 ký tự',
+      'string.max': 'Họ và tên không được quá 100 ký tự',
+      'any.required': 'Họ và tên là bắt buộc'
+    }),
+
+    phoneNumber: Joi.string()
+    .trim()
+    .pattern(/^[0-9]{10,11}$/) // Regex for 10 or 11 digit phone numbers
+    .required() // Mark as required (if phone number is mandatory)
+    .messages({
+      'string.empty': 'Số điện thoại là bắt buộc',
+      'string.pattern.base': 'Số điện thoại không hợp lệ',
+      'any.required': 'Số điện thoại là bắt buộc'
+    }),
+
 });
 
 export const forgotPasswordValidationSchema = Joi.object({

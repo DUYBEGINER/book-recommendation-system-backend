@@ -134,6 +134,35 @@ export const findUserByEmail = async (email) => {
   return transformUser(user, true);
 };
 
+export const checkExistingUser = async (email, username, phoneNumber) => {
+  // Create a flexible array of conditions to prevent Prisma errors if email or username or phone_number is empty/undefined
+  const orConditions = [];
+  if (email) orConditions.push({ email });
+  if (username) orConditions.push({ username });
+  if (phoneNumber) orConditions.push({ phone_number: phoneNumber });
+
+  // If no values are provided, return false immediately without querying the database
+  if (orConditions.length === 0) {
+    return { emailExist: false, usernameExist: false, phoneNumberExist: false };
+  }
+
+  // Use findMany instead of findUnique because there might be 2 different users: 
+  // one matching the email, and another matching the username
+  const users = await prisma.users.findMany({
+    where: {
+      OR: orConditions
+    },
+    select: { email: true, username: true, phone_number: true },
+  });
+
+  // Check if the database results match the provided email or username
+  return {
+    emailExist: users.some(user => user.email === email),
+    usernameExist: users.some(user => user.username === username),
+    phoneNumberExist: users.some(user => user.phone_number === phoneNumber)
+  };
+}
+
 // =============================================================================
 // USER CREATION FUNCTIONS
 // =============================================================================
@@ -144,7 +173,7 @@ export const findUserByEmail = async (email) => {
  * @param {string} userData.email - User's email (required)
  * @param {string} userData.password - Hashed password (required)
  * @param {string} userData.username - Username (optional, generated from email if not provided)
- * @param {string} userData.fullName - User's full name (optional)
+ * @param {string} userData.phoneNumber - User's phone number (optional)
  * @param {string} userData.role - Role name (default: 'user')
  * @param {boolean} userData.isActivate - Account activation status (default: false)
  * @returns {Promise<Object>} Created user object
@@ -167,8 +196,9 @@ export const createUser = async (userData) => {
       username: userData.username || generateUsernameFromEmail(userData.email),
       email: userData.email,
       password: userData.password,
+      phone_number: userData.phoneNumber || null,
       full_name: userData.fullName || null,
-      avatar_url: userData.avatarUrl || null,
+      avatar_url: null,
       role_id: role.role_id,
       is_activate: userData.isActivate ?? false, // Default to false if not provided
       is_ban: false,
@@ -256,4 +286,5 @@ export const authService = {
   createUser,
   // OAuth
   findOrCreateOAuthUser,
+  checkExistingUser,
 };
