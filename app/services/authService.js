@@ -134,24 +134,33 @@ export const findUserByEmail = async (email) => {
   return transformUser(user, true);
 };
 
-export const checkExistingUser = async (email, username, phoneNumber) => {
+export const checkExistingUser = async (email, username, phoneNumber, userId = null) => {
   // Create a flexible array of conditions to prevent Prisma errors if email or username or phone_number is empty/undefined
   const orConditions = [];
   if (email) orConditions.push({ email });
   if (username) orConditions.push({ username });
   if (phoneNumber) orConditions.push({ phone_number: phoneNumber });
-
+  
   // If no values are provided, return false immediately without querying the database
   if (orConditions.length === 0) {
     return { emailExist: false, usernameExist: false, phoneNumberExist: false };
   }
 
+  // Construct the where clause with OR conditions and optional NOT condition to exclude current user
+  const whereClause = {
+    OR: orConditions
+  };
+  //  Exclude the current user from the check if userId is provided (for updates)
+  if (userId) {
+    whereClause.NOT = {
+      user_id: BigInt(userId),
+    };
+  }
+
   // Use findMany instead of findUnique because there might be 2 different users: 
   // one matching the email, and another matching the username
   const users = await prisma.users.findMany({
-    where: {
-      OR: orConditions
-    },
+    where: whereClause,
     select: { email: true, username: true, phone_number: true },
   });
 

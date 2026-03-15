@@ -9,6 +9,7 @@
  */
 import { ApiResponse, logger } from "#utils/index.js";
 import { userService } from "#services/userService.js";
+import { checkExistingUser } from "#services/authService.js";
 import { favoriteService } from "#services/favoriteService.js";
 import { historyService } from "#services/historyService.js";
 import { ratingService } from "#services/ratingService.js";
@@ -64,11 +65,23 @@ export const updateUserProfile = async (req, res) => {
     const { username, fullName, phoneNumber, avatarUrl } = req.body;
     
     // Verify user owns this profile or is admin
-    if (req.user.userId !== userId && req.user.role !== 'admin') {
+    if (req.user.userId !== userId && req.user.role !== 'ADMIN') {
       return ApiResponse.error(res, 'Unauthorized', 403);
     }
-    
-    // 1. Call service to update
+
+    //Check new username doesn't conflict with another user (if username is being updated)
+    const duplicateInfo = await checkExistingUser(null, username, phoneNumber, userId);
+    if (duplicateInfo) {
+      if (duplicateInfo.usernameExist) {
+        return ApiResponse.error(res, 'Username already taken', 400);
+      }
+      if (duplicateInfo.phoneNumberExist) {
+        return ApiResponse.error(res, 'Phone number already in use', 400);
+      }
+    }
+
+    logger.info(`Updating profile for user ${userId} with data: ${JSON.stringify(req.body)}`);
+    // If no conflicts, call service to update
     const user = await userService.updateUserProfile(userId, {
       username,
       fullName,
@@ -76,10 +89,10 @@ export const updateUserProfile = async (req, res) => {
       avatarUrl,
     });
 
-    // 2. Transform via mapper
+    //Transform via mapper
     const userProfile = toUserProfileResponse(user);
 
-    // 3. Issue a new access token with updated claims so frontend stays in sync
+    //Issue a new access token with updated claims so frontend stays in sync
     //    without needing an extra round-trip to /auth/profile
     const { accessToken } = signAccessToken({
       userId: userProfile.id,
