@@ -432,22 +432,16 @@ export const getSessions = async (req, res) => {
 
 /**
  * GET /auth/profile - Get current user profile
- * 
- * 
+ *
+ * Stateless: reads claims directly from the verified access token.
+ * Token is always kept up-to-date because update endpoints issue a new
+ * access token on every profile/avatar change.
  */
-export const getAuthprofile = async (req, res) => {
-  try {
-    const userId = req.user?.userId;
-    if (!userId) {
-      return ApiResponse.error(res, 'Không có quyền truy cập', 401);
-    }
-    const user = await authService.getUserById(req.user.userId);
-    
-    const data = buildUserPayload(user);
-
-    return ApiResponse.success(res, data, 'Thông tin hồ sơ');
-  } catch (error) {
-    logger.error('Get profile error', { error: error.message });
-    return ApiResponse.error(res, 'Lỗi hệ thống', 500);
-  }
+export const getAuthprofile = (req, res) => {
+  const { userId, email, fullName, role, avatarUrl } = req.user;
+  return ApiResponse.success(
+    res,
+    { userId, email, fullName, role, avatarUrl: avatarUrl || null },
+    'Thông tin hồ sơ',
+  );
 };

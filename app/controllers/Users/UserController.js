@@ -14,6 +14,7 @@ import { historyService } from "#services/historyService.js";
 import { ratingService } from "#services/ratingService.js";
 import { bookmarkService } from "#services/bookmarkService.js";
 import { hashPassword, comparePassword } from "#utils/hashPassword.js";
+import { signAccessToken } from "#utils/jwt.js";
 
 // Import mappers
 import { toUserResponse, toUserProfileResponse, toUserAvatarResponse, toUserPaginatedResponse } from "#mappers/user.mapper.js";
@@ -74,11 +75,21 @@ export const updateUserProfile = async (req, res) => {
       phoneNumber,
       avatarUrl,
     });
-    
+
     // 2. Transform via mapper
-    const response = toUserProfileResponse(user);
-    
-    return ApiResponse.success(res, response, 'Profile updated successfully');
+    const userProfile = toUserProfileResponse(user);
+
+    // 3. Issue a new access token with updated claims so frontend stays in sync
+    //    without needing an extra round-trip to /auth/profile
+    const { accessToken } = signAccessToken({
+      userId: userProfile.id,
+      email: userProfile.email,
+      fullName: userProfile.fullName,
+      role: 'USER',
+      avatarUrl: userProfile.avatarUrl || null,
+    });
+
+    return ApiResponse.success(res, { user: userProfile, accessToken }, 'Profile updated successfully');
   } catch (error) {
     logger.error('Update user profile error:', error);
     return ApiResponse.error(res, 'Failed to update profile', 500);
@@ -109,27 +120,36 @@ export const updateUserAvatar = async (req, res) => {
         return ApiResponse.error(res, 'Failed to upload avatar', 500);
       }
       avatarUrl = result.url;
-      console.log(`Uploaded avatar URL: ${avatarUrl}`);
     }
-    
+
     if (!avatarUrl) {
       return ApiResponse.error(res, 'Cannot get avatar url from uploaded file', 400);
     }
+
     //1. Get current avatar URL to delete old one if exists
     const currentAvatarUrl = await userService.getAvatarUrl(userId);
-    console.log(`Current avatar URL: ${currentAvatarUrl}`);
-    
+
     //2. Delete old avatar from R2 if exists
     if (currentAvatarUrl) {
       await deleteFromR2(BUCKET_NAME, currentAvatarUrl);
     }
-    // 1. Call service to update
+
+    // 3. Call service to update
     const user = await userService.updateUserAvatar(userId, avatarUrl);
-    
-    // 2. Transform via mapper
-    const response = toUserAvatarResponse(user);
-    
-    return ApiResponse.success(res, response, 'Avatar updated successfully');
+
+    // 4. Transform via mapper
+    const avatarResponse = toUserAvatarResponse(user);
+
+    // 5. Issue a new access token so avatarUrl claim is immediately up to date
+    const { accessToken } = signAccessToken({
+      userId: req.user.userId,
+      email: req.user.email,
+      fullName: req.user.fullName,
+      role: req.user.role,
+      avatarUrl: avatarResponse.avatarUrl,
+    });
+
+    return ApiResponse.success(res, { user: avatarResponse, accessToken }, 'Avatar updated successfully');
   } catch (error) {
     logger.error('Update avatar error:', error);
     return ApiResponse.error(res, 'Failed to update avatar', 500);
