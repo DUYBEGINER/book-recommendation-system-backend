@@ -81,6 +81,7 @@ const getBooksByGenre = async (req, res) => {
     try {
         const result = await getBooksByGenreService(genreId, pageNum, sizeNum, validSort);
         const bookResponse = toBookListResponse(result.data);
+        console.log(`Fetched ${result.data.length} books for genre ID ${genreId} (page ${pageNum}, size ${sizeNum}, sort ${validSort})`);
         return ApiResponse.success(res, {
             content: bookResponse,
             ...result.pagination,

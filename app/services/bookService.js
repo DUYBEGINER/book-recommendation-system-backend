@@ -110,7 +110,7 @@ const getBooksByGenre = async (genreId, page = 0, size = 10, sort = 'newest') =>
     }),
     prisma.books.count({ where }),
   ]);
-
+  
   return {
     data: books,
     pagination: {
