@@ -3,13 +3,14 @@ import { prisma } from '#lib/prisma.js';
 import { hashPassword } from '#utils/hashPassword.js';
 import { logger } from '#utils/index.js';
 import { sendPasswordResetEmail } from './emailService.js';
+import { TOKEN_TYPES } from '../constants/tokenTypes.js';
 
 // =============================================================================
 // CONSTANTS
 // =============================================================================
 
 const RESET_TOKEN_BYTES = 32;
-const RESET_TOKEN_EXPIRY_MINUTES = 15;
+const RESET_TOKEN_EXPIRY_MINUTES = 10;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 // =============================================================================
@@ -38,7 +39,7 @@ function hashToken(token) {
  * @param {string} email
  */
 export async function requestPasswordReset(email) {
-  const user = await prisma.users.findUnique({ where: { email }, select: { user_id: true, is_ban: true } });
+  const user = await prisma.users.findUnique({ where: { email }, select: { user_id: true, is_ban: true, is_activate: true } });
 
   if (!user) {
     // Silently return — no email enumeration
@@ -51,18 +52,36 @@ export async function requestPasswordReset(email) {
     return;
   }
 
+  if (!user.is_activate) {
+    logger.warn('Password reset requested for inactive account', { email });
+    return;
+  }
+
   const plainToken = generateResetToken();
   const hashedToken = hashToken(plainToken);
-  const expiry = new Date(Date.now() + RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000);
+  const createdAt = new Date();
+  const expiry = new Date(createdAt.getTime() + RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000);
 
-  await prisma.users.update({
-    where: { user_id: user.user_id },
-    data: {
-      reset_password_token: hashedToken,
-      reset_password_token_expiry: expiry,
-    },
+
+  // Delete any existing reset tokens for this user before creating a new one
+  await prisma.user_tokens.deleteMany({
+    where: {
+      user_id: user.user_id,
+      type: TOKEN_TYPES.RESET_PASSWORD,
+    }
   });
-  
+
+  // Create a new reset token record
+  await prisma.user_tokens.create({
+    data: {
+      user_id: user.user_id,
+      token: hashedToken,
+      type: TOKEN_TYPES.RESET_PASSWORD,
+      expires_at: expiry,
+      created_at: createdAt,
+    }
+  });
+
   const resetUrl = `${FRONTEND_URL}/reset-password?token=${plainToken}`;
 
   await sendPasswordResetEmail(email, resetUrl);
@@ -80,27 +99,33 @@ export async function requestPasswordReset(email) {
 export async function resetPassword(plainToken, newPassword) {
   const hashedToken = hashToken(plainToken);
 
-  const user = await prisma.users.findFirst({
+  const validToken = await prisma.user_tokens.findFirst({
     where: {
-      reset_password_token: hashedToken,
-      reset_password_token_expiry: { gt: new Date() },
+      token: hashedToken,
+      type: TOKEN_TYPES.RESET_PASSWORD,
+      expires_at: { gt: new Date() },
     },
   });
 
-  if (!user) {
+  if (!validToken) {
     throw new Error('Token không hợp lệ hoặc đã hết hạn');
   }
 
   const hashedPassword = await hashPassword(newPassword);
 
-  await prisma.users.update({
-    where: { user_id: user.user_id },
-    data: {
-      password: hashedPassword,
-      reset_password_token: null,
-      reset_password_token_expiry: null,
-    },
+  // Use a transaction to ensure both operations succeed or fail together
+  await prisma.$transaction(async (prisma) => {
+    // Update the user's password
+    await prisma.users.update({
+      where: { user_id: validToken.user_id },
+      data: {
+        password: hashedPassword,
+      },
+    });
+    // Invalidate the token after successful password reset
+    await prisma.user_tokens.delete({
+      where: { token_id: validToken.token_id }
+    });
   });
-
-  logger.info('Password reset successful', { userId: user.user_id.toString() });
+  logger.info('Password reset successful', { userId: validToken.user_id.toString() });
 }
