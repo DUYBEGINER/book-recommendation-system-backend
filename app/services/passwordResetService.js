@@ -1,29 +1,11 @@
-import crypto from 'crypto';
 import { prisma } from '#lib/prisma.js';
 import { hashPassword } from '#utils/hashPassword.js';
 import { logger } from '#utils/index.js';
 import { sendPasswordResetEmail } from './emailService.js';
-import { TOKEN_TYPES } from '../constants/tokenTypes.js';
+import { TOKEN_TYPES, TOKEN_BYTES, RESET_TOKEN_EXPIRY_MINUTES } from '../constants/tokenTypes.js';
+import { generateToken, hashToken } from '../utils/token.util.js';
 
-// =============================================================================
-// CONSTANTS
-// =============================================================================
-
-const RESET_TOKEN_BYTES = 32;
-const RESET_TOKEN_EXPIRY_MINUTES = 10;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
-
-// =============================================================================
-// HELPERS
-// =============================================================================
-
-function generateResetToken() {
-  return crypto.randomBytes(RESET_TOKEN_BYTES).toString('hex');
-}
-
-function hashToken(token) {
-  return crypto.createHash('sha256').update(token).digest('hex');
-}
 
 // =============================================================================
 // PUBLIC API
@@ -57,7 +39,7 @@ export async function requestPasswordReset(email) {
     return;
   }
 
-  const plainToken = generateResetToken();
+  const plainToken = generateToken(TOKEN_BYTES);
   const hashedToken = hashToken(plainToken);
   const createdAt = new Date();
   const expiry = new Date(createdAt.getTime() + RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000);
@@ -114,16 +96,16 @@ export async function resetPassword(plainToken, newPassword) {
   const hashedPassword = await hashPassword(newPassword);
 
   // Use a transaction to ensure both operations succeed or fail together
-  await prisma.$transaction(async (prisma) => {
+  await prisma.$transaction(async (tx) => {
     // Update the user's password
-    await prisma.users.update({
+    await tx.users.update({
       where: { user_id: validToken.user_id },
       data: {
         password: hashedPassword,
       },
     });
     // Invalidate the token after successful password reset
-    await prisma.user_tokens.delete({
+    await tx.user_tokens.delete({
       where: { token_id: validToken.token_id }
     });
   });

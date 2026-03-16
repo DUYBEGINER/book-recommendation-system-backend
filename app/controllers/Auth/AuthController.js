@@ -15,6 +15,7 @@ import {
 } from "#utils/jwt.js";
 import { authService } from "#services/authService.js";
 import { sessionStore } from "#services/sessionStore.js";
+import {sendActivationLink} from "#services/activateAccountService.js";
 import { hashPassword, comparePassword } from "#utils/hashPassword.js";
 
 // =============================================================================
@@ -306,33 +307,8 @@ export const registerWithEmailAndPassword = async (req, res) => {
       isActivate: false, // Requires email verification
     });
 
-    // If we want to automatically log in the user after registration, we can create a session here.
-    // Create new user
-    // const newUser = await authService.createUser({
-    //   email,
-    //   password: hashedPassword,
-    //   username: username,
-    //   fullName: fullName,
-    //   phoneNumber: phoneNumber,
-    //   role: 'USER',
-    //   isActivate: false, // Requires email verification
-    // });
-
-    // Build token payload and generate access token
-    // const userPayload = buildUserPayload(newUser);
-    // const { accessToken } = signAccessToken(userPayload);
-
-    // Create session and set refresh token cookie
-    // const metadata = getClientMetadata(req);
-    // const { refreshTokenId } = await createSessionAndSetCookie(res, newUser.id, metadata);
-
-    // logger.info('Registration successful', { email, userId: newUser.id, jti: refreshTokenId });
-
-    // return ApiResponse.success(res, {
-    //   user: userPayload,
-    //   accessToken,
-    //   expiresIn: TOKEN_EXPIRY.ACCESS,
-    // }, 'Đăng ký thành công', 201);
+    // Send activation email (fire-and-forget)
+    await sendActivationLink(email);
 
     return ApiResponse.success(res, {}, 'Đăng ký thành công', 201);
   } catch (error) {

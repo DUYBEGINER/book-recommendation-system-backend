@@ -12,6 +12,7 @@ import {
 } from '../controllers/Auth/AuthController.js';
 import { refreshTokenHandler } from '../controllers/Auth/TokenController.js';
 import { forgotPassword, resetPasswordHandler } from '../controllers/Auth/PasswordResetController.js';
+import {activateAccountHandler} from '../controllers/Auth/ActivateAccountController.js';
 
 // MIDDLEWARES
 import { authenticateToken } from '#middlewares/authenticateToken.js';
@@ -44,6 +45,11 @@ router.post("/auth/register",
   registerRateLimit, 
   validate(registerValidationSchema), 
   registerWithEmailAndPassword
+);
+
+// Activation account with validation
+router.post("/auth/activate",
+  activateAccountHandler
 );
 
 // Google OAuth
