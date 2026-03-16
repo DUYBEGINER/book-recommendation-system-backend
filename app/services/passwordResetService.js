@@ -38,7 +38,7 @@ function hashToken(token) {
  * @param {string} email
  */
 export async function requestPasswordReset(email) {
-  const user = await prisma.users.findUnique({ where: { email } });
+  const user = await prisma.users.findUnique({ where: { email }, select: { user_id: true, is_ban: true } });
 
   if (!user) {
     // Silently return — no email enumeration
@@ -62,7 +62,7 @@ export async function requestPasswordReset(email) {
       reset_password_token_expiry: expiry,
     },
   });
-
+  
   const resetUrl = `${FRONTEND_URL}/reset-password?token=${plainToken}`;
 
   await sendPasswordResetEmail(email, resetUrl);

@@ -1,8 +1,9 @@
 import { ApiResponse, logger } from "#utils/index.js";
 import { toBookListResponse, toBookDetailResponse, toBookPreviewResponse, toBookSearchResponse } from "../../mappers/book.mapper.js";
 import { toRatingListResponse } from "../../mappers/rating.mapper.js";
-import { 
+import {
     getBooksByGenre as getBooksByGenreService,
+    getSameGenreBooks as getSameGenreBooksService,
     getMostReadBooks as getMostReadBooksService,
     getAllBooks as getAllBooksService,
     getBookById as getBookByIdService,
@@ -218,4 +219,29 @@ const getBookRatingsPaginated = async (req, res) => {
     }
 }
 
-export { getBooksByGenre, getBookById, getMostReadBooks, getAllBooks, getBookPreview, getBookByKeyword, getBookReadUrl, downloadBook, getBookRatingsPaginated };
+/**
+ * GET /books/:bookId/same-genre?limit=6
+ *
+ * Returns a capped list of books that share at least one genre with the
+ * requested book, excluding the book itself, ordered newest-first.
+ *
+ * Query params:
+ *   limit {number} – max results, clamped to [1, 20], default 6.
+ */
+const getSameGenreBooks = async (req, res) => {
+    const { bookId } = req.params;
+    if (!bookId) return ApiResponse.error(res, 'Book ID is required', 400);
+
+    const limit = Math.min(20, Math.max(1, parseInt(req.query.limit) || 6));
+
+    try {
+        const books = await getSameGenreBooksService(bookId, limit);
+        const booksResponse = toBookListResponse(books);
+        return ApiResponse.success(res, booksResponse, 'Same-genre books fetched successfully');
+    } catch (err) {
+        logger.error(`Error fetching same-genre books for book ${bookId}: ${err.message}`);
+        return ApiResponse.error(res, 'Failed to fetch same-genre books', 500);
+    }
+}
+
+export { getBooksByGenre, getSameGenreBooks, getBookById, getMostReadBooks, getAllBooks, getBookPreview, getBookByKeyword, getBookReadUrl, downloadBook, getBookRatingsPaginated };

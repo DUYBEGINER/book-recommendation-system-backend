@@ -726,8 +726,70 @@ const getBookDownloadUrl = async (bookId, formatId) => {
   return { url, fileName, typeName: bookFormat.book_types.type_name, expiresIn: 3600 };
 };
 
+/**
+ * Fetch a capped list of books that share at least one genre with the given
+ * book, excluding the book itself.
+ *
+ * Two-step query inside a single transaction:
+ *   1. Resolve the source book's genre IDs from the pivot table.
+ *   2. Find non-deleted books that belong to any of those genres, newest-first.
+ *
+ * @param {string|number} bookId - Source book whose genres are matched.
+ * @param {number}        limit  - Maximum number of books to return (default 6).
+ * @returns {Promise<Array>} Array of book records shaped for toBookListResponse.
+ */
+const getSameGenreBooks = async (bookId, limit = 6) => {
+  const bookIdBig = BigInt(bookId);
+
+  const [, books] = await prisma.$transaction(async (tx) => {
+    const genres = await tx.book_genres.findMany({
+      where: { book_id: bookIdBig },
+      select: { genre_id: true },
+    });
+
+    if (genres.length === 0) return [genres, []];
+
+    const genreIds = genres.map((bg) => bg.genre_id);
+
+    const results = await tx.books.findMany({
+      where: {
+        is_deleted: false,
+        book_id: { not: bookIdBig },
+        book_genres: { some: { genre_id: { in: genreIds } } },
+      },
+      take: limit,
+      orderBy: { created_at: 'desc' },
+      select: {
+        book_id: true,
+        title: true,
+        cover_image_url: true,
+        publication_year: true,
+        book_authors: {
+          select: {
+            authors: {
+              select: { author_id: true, author_name: true },
+            },
+          },
+        },
+        book_genres: {
+          select: {
+            genres: {
+              select: { genre_id: true, genre_name: true },
+            },
+          },
+        },
+      },
+    });
+
+    return [genres, results];
+  });
+
+  return books;
+};
+
 export {
   getBooksByGenre,
+  getSameGenreBooks,
   getBookById,
   getMostReadBooks,
   getAllBooks,
@@ -748,6 +810,7 @@ export {
 
 export const bookService = {
   getBooksByGenre,
+  getSameGenreBooks,
   getBookById,
   getMostReadBooks,
   getAllBooks,
