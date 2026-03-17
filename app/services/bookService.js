@@ -468,11 +468,24 @@ const createBook = async (bookData) => {
 };
 
 /**
- * Update a book
+ * Update a book with authors (find-or-create), genres, and formats.
+ * Mirrors the create flow: accepts authorNames[], genreIds[], formats[].
  */
 const updateBook = async (bookId, bookData) => {
-  const { title, description, coverImageUrl, publicationYear, publisher, authorIds, genreIds } = bookData;
+  const {
+    title,
+    description,
+    coverImageUrl,
+    publicationYear,
+    publisher,
+    authorNames = [],
+    genreIds = [],
+    formats = [],
+  } = bookData;
 
+  const bookIdBig = BigInt(bookId);
+
+  // Build scalar update payload — only include fields that were provided
   const updateData = { updated_at: new Date() };
   if (title !== undefined) updateData.title = title;
   if (description !== undefined) updateData.description = description;
@@ -481,40 +494,80 @@ const updateBook = async (bookId, bookData) => {
   if (publisher !== undefined) updateData.publisher = publisher;
 
   const book = await prisma.books.update({
-    where: { book_id: BigInt(bookId) },
+    where: { book_id: bookIdBig },
     data: updateData,
   });
 
-  // Update author relationships if provided
-  if (authorIds !== undefined) {
-    await prisma.book_authors.deleteMany({
-      where: { book_id: BigInt(bookId) },
-    });
+  // Update author relationships (find-or-create by name)
+  if (authorNames.length > 0) {
+    const resolvedAuthorIds = [];
 
-    if (authorIds.length > 0) {
+    for (const name of authorNames) {
+      const trimmed = name.trim();
+      if (!trimmed) continue;
+
+      let author = await prisma.authors.findFirst({
+        where: { author_name: trimmed },
+      });
+
+      if (!author) {
+        author = await prisma.authors.create({
+          data: { author_name: trimmed },
+        });
+      }
+
+      resolvedAuthorIds.push(author.author_id);
+    }
+
+    await prisma.book_authors.deleteMany({ where: { book_id: bookIdBig } });
+
+    if (resolvedAuthorIds.length > 0) {
       await prisma.book_authors.createMany({
-        data: authorIds.map(authorId => ({
-          book_id: BigInt(bookId),
-          author_id: BigInt(authorId),
+        data: resolvedAuthorIds.map((authorId) => ({
+          book_id: bookIdBig,
+          author_id: authorId,
         })),
       });
     }
   }
 
-  // Update genre relationships if provided
-  if (genreIds !== undefined) {
-    await prisma.book_genres.deleteMany({
-      where: { book_id: BigInt(bookId) },
+  // Update genre relationships
+  if (genreIds.length > 0) {
+    await prisma.book_genres.deleteMany({ where: { book_id: bookIdBig } });
+
+    await prisma.book_genres.createMany({
+      data: genreIds.map((genreId) => ({
+        book_id: bookIdBig,
+        genre_id: BigInt(genreId),
+      })),
+    });
+  }
+
+  // Upsert book formats (PDF / EPUB)
+  for (const format of formats) {
+    let bookType = await prisma.book_types.findUnique({
+      where: { type_name: format.typeName },
     });
 
-    if (genreIds.length > 0) {
-      await prisma.book_genres.createMany({
-        data: genreIds.map(genreId => ({
-          book_id: BigInt(bookId),
-          genre_id: BigInt(genreId),
-        })),
+    if (!bookType) {
+      bookType = await prisma.book_types.create({
+        data: { type_name: format.typeName },
       });
     }
+
+    // Delete existing format of the same type, then insert the new one
+    await prisma.book_formats.deleteMany({
+      where: { book_id: bookIdBig, type_id: bookType.type_id },
+    });
+
+    await prisma.book_formats.create({
+      data: {
+        book_id: bookIdBig,
+        type_id: bookType.type_id,
+        content_url: format.contentUrl,
+        file_size_kb: format.fileSizeKb || null,
+      },
+    });
   }
 
   return {

@@ -92,7 +92,6 @@ export const createBookHandler = async (req, res) => {
         fileSizeKb: Math.round(epubFile.size / 1024),
       });
     }
-
     // ---- Persist book + relations ----
     const book = await createBook({
       title,
@@ -106,7 +105,6 @@ export const createBookHandler = async (req, res) => {
     });
 
     logger.info(`Book created: ${book.id} by admin ${req.user.userId}`);
-    console.log('Created book:', book)  ;
     return ApiResponse.created(res, book, 'Book created successfully');
   } catch (error) {
     logger.error('Create book error:', error);
@@ -115,25 +113,79 @@ export const createBookHandler = async (req, res) => {
 };
 
 /**
- * PUT /admin/books/update/:bookId - Update a book
+ * PUT /admin/books/update/:bookId - Update a book (multipart/form-data)
+ *
+ * Expected text fields: title, description, publicationYear, publisher,
+ *   authorNames (repeated), genreIds (repeated)
+ * Expected files: cover (image), pdfFile, epubFile
  */
 export const updateBookHandler = async (req, res) => {
   try {
     const { bookId } = req.params;
-    const { title, description, coverImageUrl, publicationYear, publisher, authorIds, genreIds } = req.body;
-    
+    const { title, description, publicationYear, publisher } = req.body;
+
+    // Normalize repeated form fields — multer may deliver a string or an array
+    const authorNames = Array.isArray(req.body.authorNames)
+      ? req.body.authorNames
+      : req.body.authorNames ? [req.body.authorNames] : [];
+    const genreIds = Array.isArray(req.body.genreIds)
+      ? req.body.genreIds
+      : req.body.genreIds ? [req.body.genreIds] : [];
+
+    // ---- Handle cover image upload to R2 ----
+    let coverImageUrl;
+    const coverFile = req.files?.cover?.[0];
+    if (coverFile) {
+      // Delete old cover from R2 before uploading new one
+      const oldCoverUrl = await getBookCoverUrl(bookId);
+      if (oldCoverUrl) {
+        await deleteFromR2(BUCKET_NAME, oldCoverUrl);
+      }
+
+      const result = await uploadToR2(BUCKET_NAME, coverFile.buffer, "covers", coverFile.originalname);
+      if (!result.success) {
+        return ApiResponse.error(res, 'Failed to upload cover image', 500);
+      }
+      coverImageUrl = result.url;
+    }
+
+    // ---- Handle book file uploads to MinIO ----
+    const formats = [];
+
+    const pdfFile = req.files?.pdfFile?.[0];
+    if (pdfFile) {
+      const { key } = await uploadToMinio(pdfFile.buffer, pdfFile.originalname);
+      formats.push({
+        typeName: 'PDF',
+        contentUrl: key,
+        fileSizeKb: Math.round(pdfFile.size / 1024),
+      });
+    }
+
+    const epubFile = req.files?.epubFile?.[0];
+    if (epubFile) {
+      const { key } = await uploadToMinio(epubFile.buffer, epubFile.originalname);
+      formats.push({
+        typeName: 'EPUB',
+        contentUrl: key,
+        fileSizeKb: Math.round(epubFile.size / 1024),
+      });
+    }
+
+    // ---- Persist updates ----
     const book = await updateBook(bookId, {
       title,
       description,
       coverImageUrl,
       publicationYear,
       publisher,
-      authorIds,
+      authorNames,
       genreIds,
+      formats,
     });
-    
+
     logger.info(`Book updated: ${bookId} by admin ${req.user.userId}`);
-    
+
     return ApiResponse.success(res, book, 'Book updated successfully');
   } catch (error) {
     logger.error('Update book error:', error);
