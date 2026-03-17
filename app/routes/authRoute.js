@@ -3,7 +3,7 @@ import express from 'express';
 // CONTROLLERS
 import {
   googleLogin,
-  loginWithEmailAndPassword,
+  loginWithIdentifierAndPassword,
   registerWithEmailAndPassword,
   logout,
   logoutAll,
@@ -37,7 +37,7 @@ const router = express.Router();
 router.post("/auth/login", 
   loginRateLimit, 
   validate(loginValidationSchema), 
-  loginWithEmailAndPassword
+  loginWithIdentifierAndPassword
 );
 
 // Register with rate limiting and validation

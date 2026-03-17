@@ -126,9 +126,14 @@ export const getUserByEmail = async (email) => {
  * @param {string} email - User's email
  * @returns {Promise<Object|null>} User object with password or null
  */
-export const findUserByEmail = async (email) => {
-  const user = await prisma.users.findUnique({
-    where: { email },
+export const findUserByIdentifier = async (identifier) => {
+  const user = await prisma.users.findFirst({
+    where: {
+      OR: [
+        { email: identifier },
+        { username: identifier }
+      ]
+    },
     select: AUTH_SELECT_FIELDS,
   });
   return transformUser(user, true);
@@ -290,7 +295,7 @@ export const authService = {
   // User retrieval
   getUserById,
   getUserByEmail,
-  findUserByEmail,
+  findUserByIdentifier,
   // User creation
   createUser,
   // OAuth

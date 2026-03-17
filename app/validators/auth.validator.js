@@ -3,19 +3,33 @@ import Joi from 'joi';
 // Email validation pattern
 const EMAIL_PATTERN = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
+// Username validation pattern: 3-20 characters, letters/numbers/underscore, no spaces
+const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/;
+
 // Password validation pattern (minimum 8 characters, at least one uppercase, one lowercase, one number)
 const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/;
 
 export const loginValidationSchema = Joi.object({
-  email: Joi.string()
+  identifier: Joi.string()
     .trim()
     .lowercase()
-    .pattern(EMAIL_PATTERN)
     .required()
+    .custom((value, helpers) => {
+      // Check if value matches either email or username pattern
+      const isEmail = EMAIL_PATTERN.test(value);
+      const isUsername = USERNAME_PATTERN.test(value);
+
+      // If value is neither a valid email nor a valid username, return an error
+      if (!isEmail && !isUsername) {
+        return helpers.message('Tên đăng nhập hoặc Email không hợp lệ');
+      }
+
+      // If value is a valid email or username, return it
+      return value; 
+    })
     .messages({
-      'string.empty': 'Email là bắt buộc',
-      'string.pattern.base': 'Email không đúng định dạng',
-      'any.required': 'Email là bắt buộc'
+      'string.empty': 'Vui lòng nhập Tên đăng nhập hoặc Email',
+      'any.required': 'Vui lòng nhập Tên đăng nhập hoặc Email'
     }),
     
   password: Joi.string()

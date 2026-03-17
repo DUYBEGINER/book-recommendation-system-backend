@@ -15,15 +15,16 @@ export const loginRateLimit = rateLimit({
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   keyGenerator: (req) => {
-    // Rate limit by IP and email if available
-    const email = req.body?.email;
-    const ip = ipKeyGenerator(req); // Use proper IPv6 handling
-    return email ? `login_${email}_${ip}` : `login_${ip}`;
+    // Rate limit by IP and identifier if available
+    const identifier = req.body?.identifier; // Can be email or username
+    const ip = ipKeyGenerator(req);          // Use proper IPv6 handling
+    // return email ? `login_${email}_${ip}` : `login_${ip}`;
+    return identifier ? `login_${identifier}` : `login_${ip}`;
   },
   handler: (req, res) => {
     logger.warn('Login rate limit exceeded', {
       ip: req.ip,
-      email: req.body?.email,
+      identifier: req.body?.identifier,
       userAgent: req.get('User-Agent')
     });
     
@@ -90,8 +91,8 @@ export const forgotPasswordRateLimit = rateLimit({
  * General rate limiting for API
  */
 export const apiRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Maximum 100 requests per 15 minutes
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 100, // Maximum 100 requests per 5 minutes
   message: {
     success: false,
     message: 'Too many requests. Please try again later.',

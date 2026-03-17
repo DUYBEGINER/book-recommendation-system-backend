@@ -206,32 +206,38 @@ export const googleLogin = async (req, res) => {
  * @param {Request} req - Express request with email and password
  * @param {Response} res - Express response with user data and tokens
  */
-export const loginWithEmailAndPassword = async (req, res) => {
+export const loginWithIdentifierAndPassword = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { identifier, password } = req.body;
 
-    logger.info('Login attempt', { email });
+    logger.info('Login attempt', { identifier });
 
     // Find user by email (includes password hash)
-    const user = await authService.findUserByEmail(email);
+    const user = await authService.findUserByIdentifier(identifier);
 
     if (!user) {
-      logger.warn('Login failed: User not found', { email });
-      return ApiResponse.error(res, 'Email hoặc mật khẩu không đúng', 401);
+      logger.warn('Login failed: User not found', { identifier });
+      return ApiResponse.error(res, 'Thông tin đăng nhập hoặc mật khẩu không đúng', 401);
     }
 
     // Check if account is banned
     if (user.isBan) {
-      logger.warn('Login failed: Account banned', { email, userId: user.id });
+      logger.warn('Login failed: Account banned', { identifier, userId: user.id });
       return ApiResponse.error(res, 'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên', 403);
+    }
+
+    // Check if account is not activated
+    if (!user.isActivate) {
+      logger.warn('Login failed: Account not activated', { identifier, userId: user.id });
+      return ApiResponse.error(res, 'Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email để kích hoạt tài khoản', 403);
     }
 
     // Verify password using bcrypt
     const isPasswordValid = await comparePassword(password, user.password);
 
     if (!isPasswordValid) {
-      logger.warn('Login failed: Invalid password', { email, userId: user.id });
-      return ApiResponse.error(res, 'Email hoặc mật khẩu không đúng', 401);
+      logger.warn('Login failed: Invalid password', { identifier, userId: user.id });
+      return ApiResponse.error(res, 'Thông tin đăng nhập hoặc mật khẩu không đúng', 401);
     }
 
     // Build token payload and generate access token
@@ -243,8 +249,8 @@ export const loginWithEmailAndPassword = async (req, res) => {
     const metadata = getClientMetadata(req);
     const { refreshTokenId } = await createSessionAndSetCookie(res, user.id, metadata);
 
-    logger.info('Login successful', { email, userId: user.id, jti: refreshTokenId });
-
+    logger.info('Login successful', { identifier, userId: user.id, jti: refreshTokenId });
+    
     return ApiResponse.success(res, {
       user: userPayload,
       accessToken,
