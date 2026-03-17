@@ -578,6 +578,20 @@ const updateBook = async (bookId, bookData) => {
 };
 
 /**
+ * Restore a soft-deleted book (set is_deleted back to false)
+ */
+const restoreBook = async (bookId) => {
+  await prisma.books.update({
+    where: { book_id: BigInt(bookId) },
+    data: {
+      is_deleted: false,
+      updated_at: new Date(),
+    },
+  });
+  return true;
+};
+
+/**
  * Soft delete a book
  */
 const deleteBook = async (bookId) => {
@@ -854,6 +868,7 @@ export {
   updateBook,
   deleteBook,
   deleteBooksBulk,
+  restoreBook,
   hardDeleteBook,
   getBookFormats,
   getBookReadUrl,
@@ -874,6 +889,7 @@ export const bookService = {
   updateBook,
   deleteBook,
   deleteBooksBulk,
+  restoreBook,
   getBookFormats,
   getBookReadUrl,
   getBookDownloadUrl,

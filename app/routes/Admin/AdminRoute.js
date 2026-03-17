@@ -14,6 +14,7 @@ import {
   deleteBooksBulkHandler,
   getBookFormatsHandler,
   getDeletedBooksHandler,
+  restoreBookHandler,
   hardDeleteBookHandler,
 } from '#controllers/Admin/BookController.js';
 // Genre management
@@ -38,6 +39,7 @@ router.get('/admin/dashboard', authenticateToken, getDashboard);
 // ADMIN BOOK MANAGEMENT
 // ============================================
 router.get('/admin/books/deleted', authenticateToken, getDeletedBooksHandler);
+router.patch('/admin/books/restore/:bookId', authenticateToken, restoreBookHandler);
 router.get('/admin/books', authenticateToken, getBooks);
 router.post('/admin/books/create', authenticateToken, uploadBookFiles, createBookHandler);
 router.put('/admin/books/update/:bookId', authenticateToken, uploadBookFiles, updateBookHandler);

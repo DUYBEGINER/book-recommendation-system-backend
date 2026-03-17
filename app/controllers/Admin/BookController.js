@@ -1,11 +1,12 @@
 import { ApiResponse, logger } from "#utils/index.js";
-import { 
-  getAdminBooks, 
+import {
+  getAdminBooks,
   getDeletedBooks,
-  createBook, 
-  updateBook, 
-  deleteBook, 
+  createBook,
+  updateBook,
+  deleteBook,
   deleteBooksBulk,
+  restoreBook,
   hardDeleteBook,
   getBookFormats,
   getBookCoverUrl,
@@ -262,6 +263,24 @@ export const getDeletedBooksHandler = async (req, res) => {
   } catch (error) {
     logger.error('Get deleted books error:', error);
     return ApiResponse.error(res, 'Failed to fetch deleted books', 500);
+  }
+};
+
+/**
+ * PATCH /admin/books/restore/:bookId - Restore a soft-deleted (hidden) book
+ */
+export const restoreBookHandler = async (req, res) => {
+  try {
+    const { bookId } = req.params;
+
+    await restoreBook(bookId);
+
+    logger.info(`Book restored: ${bookId} by admin ${req.user.userId}`);
+
+    return ApiResponse.success(res, null, 'Book restored successfully');
+  } catch (error) {
+    logger.error('Restore book error:', error);
+    return ApiResponse.error(res, 'Failed to restore book', 500);
   }
 };
 
