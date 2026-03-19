@@ -9,7 +9,7 @@ import "dotenv/config";
 
 const baseUrl = process.env.BASE_URL || '/api/v1';
 const corsOptions = {
-  origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true
 };
 
