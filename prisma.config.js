@@ -9,6 +9,6 @@ export default defineConfig({
     path: "app/prisma/migrations"
   },
   datasource: {
-    url: env("DATABASE_URL"),
+    url: env("DIRECT_URL"),
   },
 });

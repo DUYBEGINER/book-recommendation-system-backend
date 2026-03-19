@@ -16,9 +16,12 @@
   },
   "scripts": {
     "dev": "nodemon server.js",
+    "build": "prisma generate",
+    "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
+
   },
   "keywords": [],
   "author": "",

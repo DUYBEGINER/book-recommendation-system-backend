@@ -19,3 +19,7 @@
 [x]Giao diện sửa sách chưa có dark mode
 
 [x] Việc token có thời gian hết hạn 15 phút có thể dẫn tới nguy cơ bảo mật, nếu ai có được token còn thời hạn có thể đổi được mật khẩu
+
+[] Giới hạn đăng nhập sai đang fix cứng cho username hoặc email
+
+[] BIGUPDATE: Thêm tính năng đăng kí hội viên (tích hợp thanh toán), tích hợp sách phải đăng kí hội viên mới xem được.
