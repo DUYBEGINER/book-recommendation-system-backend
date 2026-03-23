@@ -1,14 +1,13 @@
 import { ApiResponse, logger } from "#utils/index.js";
-import { getAllGenres as getAllGenresService, getGenreById as getGenreByIdService } from "#services/genreService.js";
-import { toGenreListResponse, toGenreResponse } from "#mappers/genre.mapper.js";
-
+import {genreService} from "#services/genreService.js";
+import { toGenreListResponse, toGenreResponse, toGenrePaginatedResponse } from "#mappers/genre.mapper.js";
 /**
  * GET /books/genres - Get all genres
  */
 const getAllGenres = async (req, res) => {
     try {
         // 1. Call service to get raw genre entities
-        const genres = await getAllGenresService();
+        const genres = await genreService.getAllGenres();
 
         logger.info(`Fetched ${genres.length} genres`);
 
@@ -32,7 +31,7 @@ const getGenreById = async (req, res) => {
     }
 
     try {
-        const genre = await getGenreByIdService(genreId);
+        const genre = await genreService.getGenreById(genreId);
 
         if (!genre) {
             return ApiResponse.error(res, 'Genre not found', 404);
@@ -46,4 +45,27 @@ const getGenreById = async (req, res) => {
     }
 };
 
-export { getAllGenres, getGenreById };
+const getGenresLimit = async (req, res) => {
+    try {
+    const { page = 0, size = 50, keyword = '', sort = '' } = req.query;
+    
+    // 1. Call service to get raw data
+    const result = await genreService.getGenresWithPagination(
+      parseInt(page),
+      parseInt(size),
+      keyword,
+      sort
+    );
+    
+    // 2. Transform to response format via mapper
+    const response = toGenrePaginatedResponse(result);
+    
+    return ApiResponse.success(res, response, 'Genres fetched successfully');
+  } catch (error) {
+    logger.error('Get genres error:', error);
+    return ApiResponse.error(res, 'Failed to fetch genres', 500);
+  }
+};
+
+
+export { getAllGenres, getGenreById, getGenresLimit };

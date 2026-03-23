@@ -24,9 +24,8 @@ import { toHistoryPaginatedResponse, toHistoryActionResponse } from "#mappers/hi
 import { toRatingListResponse, toRatingCreateResponse, toAverageRatingResponse } from "#mappers/rating.mapper.js";
 import { toBookmarkListResponse, toBookmarkResponse } from "#mappers/bookmark.mapper.js";
 
-//Import storage config and service for avatar uploads
-import { BUCKET_NAME } from "#config/r2.config.js";
-import { uploadToR2, deleteFromR2 } from "#services/storage.service.js";
+//Import storage service for avatar uploads
+import { uploadToCloudinary, deleteFromCloudinary, CLOUDINARY_FOLDERS } from "#services/storage.service.js";
 
 // ============================================
 // PROFILE ENDPOINTS
@@ -115,20 +114,19 @@ export const updateUserProfile = async (req, res) => {
 export const updateUserAvatar = async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     // Verify user owns this profile
     if (!userId || req.user.userId !== userId) {
       return ApiResponse.error(res, 'Unauthorized', 403);
     }
-    
-    // TODO: Handle file upload to R2/S3
-    // For now, expect avatarUrl in body
+
+    // Handle file upload to Cloudinary
     let avatarUrl = '';
     const avatarFile = req.files?.avatar?.[0];
-    
+
     if (avatarFile) {
-      // Upload file to R2/S3 and get URL
-      const result = await uploadToR2(BUCKET_NAME, avatarFile.buffer, "avatars", avatarFile.originalname);
+      // Upload file to Cloudinary and get URL
+      const result = await uploadToCloudinary(avatarFile.buffer, CLOUDINARY_FOLDERS.AVATARS);
       if (!result.success) {
         return ApiResponse.error(res, 'Failed to upload avatar', 500);
       }
@@ -142,9 +140,9 @@ export const updateUserAvatar = async (req, res) => {
     //1. Get current avatar URL to delete old one if exists
     const currentAvatarUrl = await userService.getAvatarUrl(userId);
 
-    //2. Delete old avatar from R2 if exists
+    //2. Delete old avatar from Cloudinary if exists
     if (currentAvatarUrl) {
-      await deleteFromR2(BUCKET_NAME, currentAvatarUrl);
+      await deleteFromCloudinary(currentAvatarUrl);
     }
 
     // 3. Call service to update

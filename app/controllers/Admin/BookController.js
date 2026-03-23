@@ -11,9 +11,8 @@ import {
   getBookFormats,
   getBookCoverUrl,
 } from "#services/bookService.js";
-import { BUCKET_NAME } from "#config/r2.config.js";
 import { uploadToMinio, deleteFromMinio } from "#config/storageConfig.js";
-import { uploadToR2, deleteFromR2 } from "#services/storage.service.js";
+import { uploadToCloudinary, deleteFromCloudinary, CLOUDINARY_FOLDERS } from "#services/storage.service.js";
 
 /**
  * GET /admin/books - Get books with pagination, filters, sorting
@@ -60,11 +59,11 @@ export const createBookHandler = async (req, res) => {
       ? req.body.genreIds
       : req.body.genreIds ? [req.body.genreIds] : [];
 
-    // ---- Upload cover image to R2 ----
+    // ---- Upload cover image to Cloudinary ----
     let coverImageUrl = '';
     const coverFile = req.files?.cover?.[0];
     if (coverFile) {
-      const result = await uploadToR2(BUCKET_NAME, coverFile.buffer, "covers", coverFile.originalname);
+      const result = await uploadToCloudinary(coverFile.buffer, CLOUDINARY_FOLDERS.COVERS);
       if (!result.success) {
         return ApiResponse.error(res, 'Failed to upload cover image', 500);
       }
@@ -133,17 +132,17 @@ export const updateBookHandler = async (req, res) => {
       ? req.body.genreIds
       : req.body.genreIds ? [req.body.genreIds] : [];
 
-    // ---- Handle cover image upload to R2 ----
+    // ---- Handle cover image upload to Cloudinary ----
     let coverImageUrl;
     const coverFile = req.files?.cover?.[0];
     if (coverFile) {
-      // Delete old cover from R2 before uploading new one
+      // Delete old cover from Cloudinary before uploading new one
       const oldCoverUrl = await getBookCoverUrl(bookId);
       if (oldCoverUrl) {
-        await deleteFromR2(BUCKET_NAME, oldCoverUrl);
+        await deleteFromCloudinary(oldCoverUrl);
       }
 
-      const result = await uploadToR2(BUCKET_NAME, coverFile.buffer, "covers", coverFile.originalname);
+      const result = await uploadToCloudinary(coverFile.buffer, CLOUDINARY_FOLDERS.COVERS);
       if (!result.success) {
         return ApiResponse.error(res, 'Failed to upload cover image', 500);
       }
@@ -293,10 +292,10 @@ export const hardDeleteBookHandler = async (req, res) => {
 
     const formats = await getBookFormats(bookId);
     const coverUrl = await getBookCoverUrl(bookId);
-    // First delete cover image if exists
+    // First delete cover image from Cloudinary if exists
     if (coverUrl) {
-      await deleteFromR2(BUCKET_NAME, coverUrl);
-      logger.info(`✅ Deleted cover image for book ${bookId} from R2 successfully.`);
+      await deleteFromCloudinary(coverUrl);
+      logger.info(`✅ Deleted cover image for book ${bookId} from Cloudinary successfully.`);
     }
 
     // Second delete associated files from MinIO

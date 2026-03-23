@@ -23,3 +23,13 @@
 [] Giới hạn đăng nhập sai đang fix cứng cho username hoặc email
 
 [] BIGUPDATE: Thêm tính năng đăng kí hội viên (tích hợp thanh toán), tích hợp sách phải đăng kí hội viên mới xem được.
+
+FRONT END
+Nếu muốn tối ưu thêm trong tương lai:
+
+Add Error Boundaries cho genre sections
+Add retry logic cho failed API calls
+Replace hard-coded IDs với slug-based routing
+Add prefetching cho likely-to-be-viewed genres
+Add skeleton loaders thay vì spinner
+Implement stale-while-revalidate strategy
